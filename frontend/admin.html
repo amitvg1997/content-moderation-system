@@ -257,7 +257,7 @@
     
     <script>
         // Configuration - UPDATE THIS
-        const API_ENDPOINT = 'https://2x1gn924x1.execute-api.eu-west-1.amazonaws.com/prod/';
+        const API_ENDPOINT = 'https://2x1gn924x1.execute-api.eu-west-1.amazonaws.com/prod';
         const UPLOADS_BUCKET = 'amit-moderation-uploads';
         
         // Load pending items on page load
@@ -323,7 +323,7 @@
             // Build image section
             let imageSection = '';
             if (item.image_key) {
-                const imageUrl = `https://${UPLOADS_BUCKET}.s3.eu-west-1.amazonaws.com/${item.image_key}`;
+                const imageUrl = item.image_url
                 imageSection = `
                     <div class="content-label">Image Preview</div>
                     <div class="image-container">
