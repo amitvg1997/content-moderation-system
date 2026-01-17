@@ -354,54 +354,62 @@
             const text = document.getElementById('text').value.trim();
             const file = selectedFile;
             
-            if (!text && !file) {
-                alert('Please provide either text or an image');
-                return;
-            }
-            
-            // Show loading
             document.getElementById('submitBtn').disabled = true;
             document.getElementById('loading').classList.add('show');
-            document.getElementById('result').classList.remove('show');
             
             try {
                 let imageKey = null;
                 
-                // Upload image if provided
-                if (file) {
-                    imageKey = await uploadImageToS3(file);
-                }
-                
-                // Submit to API
-                const response = await fetch(`${API_ENDPOINT}/submit`, {
+                // Step 1: Submit metadata, get pre-signed URL if image
+                const submitResponse = await fetch(`${API_ENDPOINT}/submit`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ text, image_key: imageKey })
+                    body: JSON.stringify({
+                        text,
+                        filename: file ? file.name : null,
+                        content_type: file ? file.type : null
+                    })
                 });
                 
-                const data = await response.json();
+                const data = await submitResponse.json();
                 currentSubmissionId = data.submission_id;
                 
-                if (response.status === 202) {
-                    showResult('⏳ Submitted', 
-                        'Your content is being analyzed. Check back in a few seconds for results.',
-                        'pending',
-                        data.submission_id);
+                // Step 2: If image, upload first
+                if (data.presigned_url && file) {
+                    await fetch(data.presigned_url, {
+                        method: 'PUT',
+                        body: file,
+                        headers: { 'Content-Type': file.type }
+                    });
                     
-                    // Auto-refresh status after 3 seconds
-                    setTimeout(() => pollStatus(data.submission_id), 3000);
-                } else {
-                    showResult('❌ Error', data.error || 'Submission failed', 'rejected', null);
+                    // Step 3: Submit with image_key
+                    const finalSubmit = await fetch(`${API_ENDPOINT}/submit`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            text,
+                            image_key: data.image_key
+                        })
+                    });
+                    
+                    const finalData = await finalSubmit.json();
                 }
                 
+                // Show result
+                showResult('⏳ Submitted', 
+                    'Your content is being analyzed. Check back in a few seconds.',
+                    'pending', data.submission_id);
+                
+                setTimeout(() => pollStatus(data.submission_id), 3000);
+                
             } catch (error) {
-                console.error('Error:', error);
-                showResult('❌ Error', `Submission failed: ${error.message}`, 'rejected', null);
+                showResult('❌ Error', error.message, 'rejected');
             } finally {
                 document.getElementById('submitBtn').disabled = false;
                 document.getElementById('loading').classList.remove('show');
             }
         });
+
         
         // Upload image to S3
         async function uploadImageToS3(file) {
