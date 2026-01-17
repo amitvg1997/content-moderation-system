@@ -383,6 +383,27 @@ class ModerationSystemStack(Stack):
             )
         )
 
+        # CORS for 4XX/5XX errors
+        api.add_gateway_response(
+            "default-4XX",
+            type=apigw.ResponseType.DEFAULT_4XX,
+            response_headers={
+                "Access-Control-Allow-Origin": apigw.Cors.ALL_ORIGINS,
+                "Access-Control-Allow-Headers": apigw.Cors.DEFAULT_HEADERS,
+                "Access-Control-Allow-Methods": apigw.Cors.ALL_METHODS
+            }
+        )
+        api.add_gateway_response(
+            "default-5XX",
+            type=apigw.ResponseType.DEFAULT_5XX,
+            response_headers={
+                "Access-Control-Allow-Origin": apigw.Cors.ALL_ORIGINS,
+                "Access-Control-Allow-Headers": apigw.Cors.DEFAULT_HEADERS,
+                "Access-Control-Allow-Methods": apigw.Cors.ALL_METHODS
+            }
+        )
+
+
         # POST /submit
         submit_resource = api.root.add_resource("submit")
         submit_resource.add_method(
