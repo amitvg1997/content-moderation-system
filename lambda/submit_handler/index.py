@@ -85,6 +85,11 @@ def lambda_handler(event, context):
             
             return {
                 'statusCode': 202,
+                'headers': {
+                    'Access-Control-Allow-Origin': '*',
+                    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+                    'Access-Control-Allow-Headers': 'Content-Type'
+                },
                 'body': json.dumps({
                     'submission_id': submission_id,
                     'status': 'pending',
