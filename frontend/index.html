@@ -292,7 +292,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>Content Moderator</h1>
+        <h1>👨🏻‍⚖️ Content Moderator</h1>
         <p class="subtitle">Submit content for instant moderation</p>
 
         <div class="tabs">
@@ -387,6 +387,14 @@
         // Submit form
         document.getElementById('moderationForm').addEventListener('submit', async e => {
             e.preventDefault();
+
+            document.getElementById('submissionId').textContent = '';
+            document.getElementById('submissionInfo').style.display = 'none';
+            currentSubmissionId = null;
+            document.getElementById('moderationForm').reset();
+            document.getElementById('fileName').textContent = '';
+            selectedFile = null;
+
             const text = document.getElementById('text').value.trim();
             const file = selectedFile;
 
