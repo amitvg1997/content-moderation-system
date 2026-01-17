@@ -387,7 +387,8 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         text,
-                        image_key: data.image_key
+                        image_key: data.image_key,
+                        submission_id: currentSubmissionId
                     })
                 });
 

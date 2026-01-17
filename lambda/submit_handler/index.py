@@ -20,14 +20,16 @@ def lambda_handler(event, context):
         image_key = body.get('image_key')
         filename = body.get('filename')
         content_type = body.get('content_type')
+        submission_id = body.get('submission_id')
         
         bucket = os.getenv('UPLOADS_BUCKET')
-        submission_id = str(uuid.uuid4())
+        
         state_machine_arn = os.getenv('STATE_MACHINE_ARN')
         
         # Case 1: First call - generate pre-signed URL for image
         if filename and content_type and not image_key:
-            key = f"uploads/{datetime.utcnow().strftime('%Y%m%d-%H%M%S')}-{filename}"
+            submission_id = str(uuid.uuid4())
+            key = f"uploads/{datetime.now().strftime('%Y%m%d-%H%M%S')}-{filename}"
             presigned_url = s3_client.generate_presigned_url(
                 'put_object',
                 Params={
