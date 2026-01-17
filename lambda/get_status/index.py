@@ -15,6 +15,11 @@ def lambda_handler(event, context):
         if not submission_id:
             return {
                 'statusCode': 400,
+                'headers': {
+                    'Access-Control-Allow-Origin': '*',
+                    'Access-Control-Allow-Methods': '*',
+                    'Access-Control-Allow-Headers': '*'
+                },
                 'body': json.dumps({'error': 'Missing submissionId'})
             }
         
@@ -26,6 +31,11 @@ def lambda_handler(event, context):
         if 'Item' in approved_response:
             return {
                 'statusCode': 200,
+                'headers': {
+                    'Access-Control-Allow-Origin': '*',
+                    'Access-Control-Allow-Methods': '*',
+                    'Access-Control-Allow-Headers': '*'
+                },
                 'body': json.dumps({
                     'submission_id': submission_id,
                     'status': 'approved',
@@ -42,6 +52,11 @@ def lambda_handler(event, context):
             if status == 'APPROVED':
                 return {
                     'statusCode': 200,
+                    'headers': {
+                        'Access-Control-Allow-Origin': '*',
+                        'Access-Control-Allow-Methods': '*',
+                        'Access-Control-Allow-Headers': '*'
+                    },
                     'body': json.dumps({
                         'submission_id': submission_id,
                         'status': 'approved',
@@ -52,6 +67,11 @@ def lambda_handler(event, context):
             elif status == 'REJECTED':
                 return {
                     'statusCode': 200,
+                    'headers': {
+                        'Access-Control-Allow-Origin': '*',
+                        'Access-Control-Allow-Methods': '*',
+                        'Access-Control-Allow-Headers': '*'
+                    },
                     'body': json.dumps({
                         'submission_id': submission_id,
                         'status': 'rejected',
@@ -61,6 +81,11 @@ def lambda_handler(event, context):
             else:  # PENDING_REVIEW
                 return {
                     'statusCode': 200,
+                    'headers': {
+                        'Access-Control-Allow-Origin': '*',
+                        'Access-Control-Allow-Methods': '*',
+                        'Access-Control-Allow-Headers': '*'
+                    },
                     'body': json.dumps({
                         'submission_id': submission_id,
                         'status': 'pending',
@@ -71,6 +96,11 @@ def lambda_handler(event, context):
         # Not found (might still be processing)
         return {
             'statusCode': 200,
+            'headers': {
+                    'Access-Control-Allow-Origin': '*',
+                    'Access-Control-Allow-Methods': '*',
+                    'Access-Control-Allow-Headers': '*'
+                },
             'body': json.dumps({
                 'submission_id': submission_id,
                 'status': 'pending',
@@ -82,5 +112,10 @@ def lambda_handler(event, context):
         print(f"Get status error: {str(e)}")
         return {
             'statusCode': 500,
+            'headers': {
+                    'Access-Control-Allow-Origin': '*',
+                    'Access-Control-Allow-Methods': '*',
+                    'Access-Control-Allow-Headers': '*'
+                },
             'body': json.dumps({'error': 'Internal server error'})
         }

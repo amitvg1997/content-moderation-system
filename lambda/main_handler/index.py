@@ -25,12 +25,17 @@ def lambda_handler(event, context):
         if not text and not image_key:
             return {
                 'statusCode': 400,
+                'headers': {
+                    'Access-Control-Allow-Origin': '*',
+                    'Access-Control-Allow-Methods': '*',
+                    'Access-Control-Allow-Headers': '*'
+                },
                 'body': json.dumps({'error': 'Provide either text or image'})
             }
         
         # Generate submission ID
         submission_id = str(uuid.uuid4())
-        timestamp = datetime.utcnow().isoformat()
+        timestamp = datetime.now().isoformat()
         
         # Create submission event
         submission_event = {
@@ -50,6 +55,11 @@ def lambda_handler(event, context):
         # Immediate response to UI
         return {
             'statusCode': 202,  # Accepted (processing)
+            'headers': {
+                    'Access-Control-Allow-Origin': '*',
+                    'Access-Control-Allow-Methods': '*',
+                    'Access-Control-Allow-Headers': '*'
+                },
             'body': json.dumps({
                 'submission_id': submission_id,
                 'message': 'Content submitted for moderation',
@@ -61,6 +71,11 @@ def lambda_handler(event, context):
         print(f"Error: {str(e)}")
         return {
             'statusCode': 500,
+            'headers': {
+                    'Access-Control-Allow-Origin': '*',
+                    'Access-Control-Allow-Methods': '*',
+                    'Access-Control-Allow-Headers': '*'
+                },
             'body': json.dumps({'error': 'Internal server error'})
         }
 

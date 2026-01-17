@@ -20,12 +20,22 @@ def lambda_handler(event, context):
         if not submission_id or not decision:
             return {
                 'statusCode': 400,
+                'headers': {
+                    'Access-Control-Allow-Origin': '*',
+                    'Access-Control-Allow-Methods': '*',
+                    'Access-Control-Allow-Headers': '*'
+                },
                 'body': json.dumps({'error': 'Missing submissionId or decision'})
             }
         
         if decision not in ['APPROVE', 'REJECT']:
             return {
                 'statusCode': 400,
+                'headers': {
+                    'Access-Control-Allow-Origin': '*',
+                    'Access-Control-Allow-Methods': '*',
+                    'Access-Control-Allow-Headers': '*'
+                },
                 'body': json.dumps({'error': 'Decision must be APPROVE or REJECT'})
             }
         
@@ -38,6 +48,11 @@ def lambda_handler(event, context):
         if 'Item' not in response:
             return {
                 'statusCode': 404,
+                'headers': {
+                    'Access-Control-Allow-Origin': '*',
+                    'Access-Control-Allow-Methods': '*',
+                    'Access-Control-Allow-Headers': '*'
+                },
                 'body': json.dumps({'error': 'Submission not found'})
             }
         
@@ -72,6 +87,11 @@ def lambda_handler(event, context):
         
         return {
             'statusCode': 200,
+            'headers': {
+                    'Access-Control-Allow-Origin': '*',
+                    'Access-Control-Allow-Methods': '*',
+                    'Access-Control-Allow-Headers': '*'
+                },
             'body': json.dumps({
                 'submission_id': submission_id,
                 'admin_decision': decision,
@@ -83,5 +103,10 @@ def lambda_handler(event, context):
         print(f"Admin decision error: {str(e)}")
         return {
             'statusCode': 500,
+            'headers': {
+                    'Access-Control-Allow-Origin': '*',
+                    'Access-Control-Allow-Methods': '*',
+                    'Access-Control-Allow-Headers': '*'
+                },
             'body': json.dumps({'error': 'Internal server error'})
         }

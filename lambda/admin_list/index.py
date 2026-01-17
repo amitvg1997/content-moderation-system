@@ -38,6 +38,11 @@ def lambda_handler(event, context):
         
         return {
             'statusCode': 200,
+            'headers': {
+                    'Access-Control-Allow-Origin': '*',
+                    'Access-Control-Allow-Methods': '*',
+                    'Access-Control-Allow-Headers': '*'
+                },
             'body': json.dumps({
                 'count': len(items),
                 'items': items
@@ -48,5 +53,10 @@ def lambda_handler(event, context):
         print(f"Admin list error: {str(e)}")
         return {
             'statusCode': 500,
+            'headers': {
+                    'Access-Control-Allow-Origin': '*',
+                    'Access-Control-Allow-Methods': '*',
+                    'Access-Control-Allow-Headers': '*'
+                },
             'body': json.dumps({'error': 'Internal server error'})
         }
