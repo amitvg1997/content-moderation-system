@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Social Media Moderation System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        
+        .subtitle {
+            color: #666;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #ddd;
+        }
+        
+        .tab-btn {
+            padding: 10px 20px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            color: #666;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+        
+        .tab-btn.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+        }
+        
+        textarea, input[type="file"], input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        
+        textarea:focus, input[type="file"]:focus, input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        textarea {
+            resize: vertical;
+            min-height: 120px;
+        }
+        
+        .file-label {
+            display: inline-block;
+            padding: 12px 20px;
+            background: #667eea;
+            color: white;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        .file-label:hover {
+            background: #764ba2;
+        }
+        
+        input[type="file"] {
+            display: none;
+        }
+        
+        .file-name {
+            margin-top: 8px;
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 10px;
+        }
+        
+        button {
+            flex: 1;
+            padding: 14px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        button:hover:not(:disabled) {
+            background: #764ba2;
+        }
+        
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        button.secondary {
+            background: #ddd;
+            color: #333;
+        }
+        
+        button.secondary:hover:not(:disabled) {
+            background: #ccc;
+        }
+        
+        .result {
+            margin-top: 30px;
+            padding: 20px;
+            border-radius: 6px;
+            text-align: center;
+            display: none;
+        }
+        
+        .result.show {
+            display: block;
+        }
+        
+        .result.approved {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        
+        .result.rejected {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        
+        .result.pending {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+        
+        .result-title {
+            font-weight: 600;
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            color: #667eea;
+            margin-top: 20px;
+        }
+        
+        .loading.show {
+            display: block;
+        }
+        
+        .spinner {
+            border: 4px solid #ddd;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .status-info {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .status-info strong {
+            color: #333;
+        }
+        
+        .submission-id {
+            font-family: monospace;
+            background: #e9ecef;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>👨🏻‍⚖️ Content Moderator</h1>
+        <p class="subtitle">Submit content for instant moderation</p>
+        
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('submit')">Submit Content</button>
+            <button class="tab-btn" onclick="switchTab('status')">Check Status</button>
+        </div>
+        
+        <!-- Submit Tab -->
+        <div class="tab-content active" id="submit">
+            <form id="moderationForm">
+                <div class="form-group">
+                    <label for="text">Text Content</label>
+                    <textarea id="text" placeholder="Write something (optional)..."></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="image">Image File</label>
+                    <label for="image" class="file-label">Choose File</label>
+                    <input type="file" id="image" accept="image/*">
+                    <div class="file-name" id="fileName"></div>
+                </div>
+                
+                <div class="button-group">
+                    <button type="submit" id="submitBtn">Submit for Moderation</button>
+                </div>
+            </form>
+            
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>Analyzing content...</p>
+            </div>
+            
+            <div class="result" id="result">
+                <div class="result-title" id="resultTitle"></div>
+                <div id="resultMessage"></div>
+                <div class="status-info" style="margin-top: 15px; display: none;" id="submissionInfo">
+                    <strong>Submission ID:</strong><br>
+                    <span class="submission-id" id="submissionId"></span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Status Tab -->
+        <div class="tab-content" id="status">
+            <div class="form-group">
+                <label for="statusSubmissionId">Submission ID</label>
+                <input type="text" id="statusSubmissionId" placeholder="Paste your submission ID here...">
+            </div>
+            
+            <div class="button-group">
+                <button onclick="checkStatus()" type="button">Check Status</button>
+            </div>
+            
+            <div class="loading" id="statusLoading">
+                <div class="spinner"></div>
+                <p>Fetching status...</p>
+            </div>
+            
+            <div class="result" id="statusResult">
+                <div class="result-title" id="statusTitle"></div>
+                <div id="statusMessage"></div>
+                <button class="secondary" style="margin-top: 15px;" onclick="checkStatus()">Refresh Status</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Configuration - UPDATE THESE
+        const API_ENDPOINT = 'https://2x1gn924x1.execute-api.eu-west-1.amazonaws.com/prod/';
+        const UPLOADS_BUCKET = 'amit-moderation-uploads';
+        
+        let selectedFile = null;
+        let currentSubmissionId = null;
+        
+        // Tab switching
+        function switchTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // Show selected tab
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+        }
+        
+        // File selection
+        document.getElementById('image').addEventListener('change', (e) => {
+            selectedFile = e.target.files[0];
+            document.getElementById('fileName').textContent = selectedFile 
+                ? `Selected: ${selectedFile.name}` 
+                : '';
+        });
+        
+        // Submit form
+        document.getElementById('moderationForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const text = document.getElementById('text').value.trim();
+            const file = selectedFile;
+            
+            if (!text && !file) {
+                alert('Please provide either text or an image');
+                return;
+            }
+            
+            // Show loading
+            document.getElementById('submitBtn').disabled = true;
+            document.getElementById('loading').classList.add('show');
+            document.getElementById('result').classList.remove('show');
+            
+            try {
+                let imageKey = null;
+                
+                // Upload image if provided
+                if (file) {
+                    imageKey = await uploadImageToS3(file);
+                }
+                
+                // Submit to API
+                const response = await fetch(`${API_ENDPOINT}/submit`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text, image_key: imageKey })
+                });
+                
+                const data = await response.json();
+                currentSubmissionId = data.submission_id;
+                
+                if (response.status === 202) {
+                    showResult('⏳ Submitted', 
+                        'Your content is being analyzed. Check back in a few seconds for results.',
+                        'pending',
+                        data.submission_id);
+                    
+                    // Auto-refresh status after 3 seconds
+                    setTimeout(() => pollStatus(data.submission_id), 3000);
+                } else {
+                    showResult('❌ Error', data.error || 'Submission failed', 'rejected', null);
+                }
+                
+            } catch (error) {
+                console.error('Error:', error);
+                showResult('❌ Error', `Submission failed: ${error.message}`, 'rejected', null);
+            } finally {
+                document.getElementById('submitBtn').disabled = false;
+                document.getElementById('loading').classList.remove('show');
+            }
+        });
+        
+        // Upload image to S3
+        async function uploadImageToS3(file) {
+            const timestamp = Date.now();
+            const key = `uploads/${timestamp}-${file.name}`;
+            
+            // In a real app, you'd get a pre-signed URL from your Lambda
+            // For now, we'll use direct S3 upload (requires bucket CORS)
+            try {
+                // Use S3 direct upload with presigned URL
+                // For this demo, we'll construct a basic URL
+                // In production, get presigned URL from your Lambda
+                
+                const url = `https://${UPLOADS_BUCKET}.s3.eu-west-1.amazonaws.com/${key}`;
+                
+                await fetch(url, {
+                    method: 'PUT',
+                    body: file,
+                    headers: {
+                        'Content-Type': file.type
+                    }
+                });
+                
+                return key;
+            } catch (error) {
+                throw new Error(`Image upload failed: ${error.message}`);
+            }
+        }
+        
+        // Poll for status
+        async function pollStatus(submissionId) {
+            try {
+                const response = await fetch(`${API_ENDPOINT}/status/${submissionId}`);
+                const data = JSON.parse(await response.text());
+                
+                if (data.status === 'approved') {
+                    showResult('✅ Approved', 'Your content has been approved and saved to the database!', 'approved', submissionId);
+                } else if (data.status === 'rejected') {
+                    showResult('❌ Rejected', 'Your content did not meet moderation standards.', 'rejected', submissionId);
+                } else if (data.status === 'pending') {
+                    // Still pending, could be awaiting admin review
+                    showResult('⏳ Pending', 'Still processing. Your content may require manual review.', 'pending', submissionId);
+                }
+            } catch (error) {
+                console.error('Poll error:', error);
+            }
+        }
+        
+        // Check status manually
+        async function checkStatus() {
+            const submissionId = document.getElementById('statusSubmissionId').value.trim();
+            
+            if (!submissionId) {
+                alert('Please enter a submission ID');
+                return;
+            }
+            
+            document.getElementById('statusLoading').style.display = 'block';
+            document.getElementById('statusResult').classList.remove('show');
+            
+            try {
+                const response = await fetch(`${API_ENDPOINT}/status/${submissionId}`);
+                const data = JSON.parse(await response.text());
+                
+                document.getElementById('statusLoading').style.display = 'none';
+                
+                let title, message, className;
+                
+                if (data.status === 'approved') {
+                    title = '✅ Approved';
+                    message = 'Your content has been approved and saved to the database.';
+                    className = 'approved';
+                } else if (data.status === 'rejected') {
+                    title = '❌ Rejected';
+                    message = 'Your content did not meet moderation standards.';
+                    className = 'rejected';
+                } else {
+                    title = '⏳ Pending';
+                    message = 'Your content is still being processed or awaiting admin review.';
+                    className = 'pending';
+                }
+                
+                document.getElementById('statusTitle').textContent = title;
+                document.getElementById('statusMessage').textContent = message;
+                document.getElementById('statusResult').className = `result show ${className}`;
+                
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('statusLoading').style.display = 'none';
+                document.getElementById('statusTitle').textContent = '❌ Error';
+                document.getElementById('statusMessage').textContent = `Failed to fetch status: ${error.message}`;
+                document.getElementById('statusResult').className = 'result show rejected';
+            }
+        }
+        
+        // Show result helper
+        function showResult(title, message, className, submissionId) {
+            document.getElementById('resultTitle').textContent = title;
+            document.getElementById('resultMessage').textContent = message;
+            document.getElementById('result').className = `result show ${className}`;
+            
+            if (submissionId) {
+                document.getElementById('submissionId').textContent = submissionId;
+                document.getElementById('submissionInfo').style.display = 'block';
+            }
+        }
+    </script>
+</body>
+</html>

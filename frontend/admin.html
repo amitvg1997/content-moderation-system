@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Content Review</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px 20px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        header h1 {
+            margin: 0;
+        }
+        
+        .refresh-btn {
+            padding: 10px 20px;
+            background: white;
+            color: #667eea;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.3s;
+        }
+        
+        .refresh-btn:hover {
+            background: #f0f0f0;
+        }
+        
+        .pending-count {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        
+        .cards-grid {
+            display: grid;
+            gap: 20px;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            border-left: 4px solid #667eea;
+        }
+        
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 15px;
+        }
+        
+        .submission-id {
+            font-family: monospace;
+            font-size: 12px;
+            background: #f0f0f0;
+            padding: 4px 8px;
+            border-radius: 3px;
+            color: #666;
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .badge.ambiguous {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .card-content {
+            margin-bottom: 15px;
+        }
+        
+        .content-preview {
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 12px;
+        }
+        
+        .content-label {
+            font-weight: 600;
+            color: #333;
+            font-size: 12px;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+        
+        .content-text {
+            color: #555;
+            word-break: break-word;
+            max-height: 100px;
+            overflow-y: auto;
+        }
+        
+        .moderation-details {
+            background: #f0f0f0;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 12px;
+            font-size: 13px;
+        }
+        
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 6px;
+        }
+        
+        .detail-row:last-child {
+            margin-bottom: 0;
+        }
+        
+        .decision-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-approve {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .btn-approve:hover {
+            background: #c3e6cb;
+        }
+        
+        .btn-reject {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .btn-reject:hover {
+            background: #f5c6cb;
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px 20px;
+            color: #667eea;
+        }
+        
+        .spinner {
+            border: 4px solid #ddd;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+        
+        .empty-state h2 {
+            color: #666;
+            margin-bottom: 10px;
+        }
+        
+        .image-container {
+            margin: 10px 0;
+            max-width: 300px;
+        }
+        
+        .image-container img {
+            max-width: 100%;
+            border-radius: 6px;
+            border: 1px solid #ddd;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div>
+                <h1>📋 Admin Content Review</h1>
+                <p style="margin-top: 5px; opacity: 0.9;">Manage pending submissions</p>
+            </div>
+            <div style="text-align: right;">
+                <div class="pending-count" id="pendingCount">Loading...</div>
+                <button class="refresh-btn" onclick="loadPendingItems()">🔄 Refresh</button>
+            </div>
+        </header>
+        
+        <div id="loadingContainer" class="loading">
+            <div class="spinner"></div>
+            <p>Loading pending submissions...</p>
+        </div>
+        
+        <div id="emptyState" class="empty-state" style="display: none;">
+            <h2>✅ All Clear!</h2>
+            <p>No pending submissions to review.</p>
+        </div>
+        
+        <div class="cards-grid" id="cardsContainer"></div>
+    </div>
+    
+    <script>
+        // Configuration - UPDATE THIS
+        const API_ENDPOINT = 'https://2x1gn924x1.execute-api.eu-west-1.amazonaws.com/prod/';
+        const UPLOADS_BUCKET = 'amit-moderation-uploads';
+        
+        // Load pending items on page load
+        loadPendingItems();
+        
+        // Auto-refresh every 30 seconds
+        setInterval(loadPendingItems, 30000);
+        
+        async function loadPendingItems() {
+            try {
+                const response = await fetch(`${API_ENDPOINT}/admin/pending`);
+                const data = await response.json();
+                
+                document.getElementById('loadingContainer').style.display = 'none';
+                
+                const items = data.items || [];
+                const container = document.getElementById('cardsContainer');
+                container.innerHTML = '';
+                
+                document.getElementById('pendingCount').textContent = `${items.length} pending`;
+                
+                if (items.length === 0) {
+                    document.getElementById('emptyState').style.display = 'block';
+                    return;
+                }
+                
+                document.getElementById('emptyState').style.display = 'none';
+                
+                items.forEach(item => {
+                    const card = createCard(item);
+                    container.appendChild(card);
+                });
+                
+            } catch (error) {
+                console.error('Error loading items:', error);
+                document.getElementById('loadingContainer').innerHTML = `
+                    <p>❌ Error loading submissions: ${error.message}</p>
+                    <button class="refresh-btn" onclick="loadPendingItems()" style="margin-top: 10px;">Retry</button>
+                `;
+            }
+        }
+        
+        function createCard(item) {
+            const card = document.createElement('div');
+            card.className = 'card';
+            
+            let moderationDetails = {};
+            try {
+                moderationDetails = JSON.parse(item.moderation_details || '{}');
+            } catch (e) {}
+            
+            let textDecision = moderationDetails.text_decision || 'N/A';
+            let imageDecision = moderationDetails.image_decision || 'N/A';
+            let textSentiment = moderationDetails.text_sentiment || 'N/A';
+            let imageLabels = (moderationDetails.image_labels || []).join(', ') || 'None';
+            
+            // Build text content preview
+            let textContent = item.text || '(No text)';
+            if (textContent.length > 150) {
+                textContent = textContent.substring(0, 150) + '...';
+            }
+            
+            // Build image section
+            let imageSection = '';
+            if (item.image_key) {
+                const imageUrl = `https://${UPLOADS_BUCKET}.s3.eu-west-1.amazonaws.com/${item.image_key}`;
+                imageSection = `
+                    <div class="content-label">Image Preview</div>
+                    <div class="image-container">
+                        <img src="${imageUrl}" alt="User submitted image" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22200%22 height=%22200%22%3E%3Crect fill=%22%23ddd%22 width=%22200%22 height=%22200%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22 fill=%22%23999%22%3EImage not available%3C/text%3E%3C/svg%3E'">
+                    </div>
+                `;
+            }
+            
+            card.innerHTML = `
+                <div class="card-header">
+                    <span class="submission-id">ID: ${item.submission_id}</span>
+                    <span class="badge ambiguous">Awaiting Review</span>
+                </div>
+                
+                <div class="card-content">
+                    <div class="content-preview">
+                        <div class="content-label">Text Content</div>
+                        <div class="content-text">${escapeHtml(textContent)}</div>
+                    </div>
+                    
+                    ${imageSection}
+                    
+                    <div class="moderation-details">
+                        <div class="detail-row">
+                            <strong>Text Decision:</strong>
+                            <span>${escapeHtml(textDecision)} (${escapeHtml(textSentiment)})</span>
+                        </div>
+                        <div class="detail-row">
+                            <strong>Image Decision:</strong>
+                            <span>${escapeHtml(imageDecision)}</span>
+                        </div>
+                        <div class="detail-row">
+                            <strong>Image Labels:</strong>
+                            <span>${escapeHtml(imageLabels)}</span>
+                        </div>
+                        <div class="detail-row">
+                            <strong>Submitted:</strong>
+                            <span>${new Date(item.created_at).toLocaleString()}</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="decision-buttons">
+                    <button class="btn btn-approve" onclick="makeDecision('${item.submission_id}', 'APPROVE')" id="btn-approve-${item.submission_id}">
+                        ✅ Approve
+                    </button>
+                    <button class="btn btn-reject" onclick="makeDecision('${item.submission_id}', 'REJECT')" id="btn-reject-${item.submission_id}">
+                        ❌ Reject
+                    </button>
+                </div>
+            `;
+            
+            return card;
+        }
+        
+        async function makeDecision(submissionId, decision) {
+            const approveBtn = document.getElementById(`btn-approve-${submissionId}`);
+            const rejectBtn = document.getElementById(`btn-reject-${submissionId}`);
+            
+            approveBtn.disabled = true;
+            rejectBtn.disabled = true;
+            
+            try {
+                const response = await fetch(`${API_ENDPOINT}/admin/decision`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        submission_id: submissionId,
+                        decision: decision
+                    })
+                });
+                
+                if (response.ok) {
+                    // Remove card or reload
+                    loadPendingItems();
+                } else {
+                    alert('Failed to save decision');
+                    approveBtn.disabled = false;
+                    rejectBtn.disabled = false;
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error saving decision: ' + error.message);
+                approveBtn.disabled = false;
+                rejectBtn.disabled = false;
+            }
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>

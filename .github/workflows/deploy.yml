@@ -1,0 +1,61 @@
+name: Deploy to AWS
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      
+      - name: Install CDK
+        run: npm install -g aws-cdk
+      
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/Amit-GitHubActionsDeployRole
+          aws-region: eu-west-1
+      
+      - name: Install CDK dependencies
+        run: |
+          cd infrastructure
+          pip install -r requirements.txt
+      
+      - name: Deploy infrastructure
+        run: |
+          cd infrastructure
+          cdk deploy --require-approval never
+      
+      - name: Deploy frontend to S3
+        run: |
+          FRONTEND_BUCKET=$(aws cloudformation describe-stacks --stack-name ModerationSystem --query 'Stacks[0].Outputs[?OutputKey==`FrontendBucketName`].OutputValue' --output text --region eu-west-1)
+          aws s3 sync frontend/ s3://$FRONTEND_BUCKET/ --delete --region eu-west-1
+      
+      - name: Deploy admin to S3
+        run: |
+          ADMIN_BUCKET=$(aws cloudformation describe-stacks --stack-name ModerationSystem --query 'Stacks[0].Outputs[?OutputKey==`AdminBucketName`].OutputValue' --output text --region eu-west-1)
+          aws s3 sync frontend/admin.html s3://$ADMIN_BUCKET/ --delete --region eu-west-1
+      
+      - name: Print outputs
+        run: |
+          aws cloudformation describe-stacks --stack-name ModerationSystem --query 'Stacks[0].Outputs' --output table --region eu-west-1

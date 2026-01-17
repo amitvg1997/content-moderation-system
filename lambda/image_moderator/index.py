@@ -4,68 +4,72 @@ import os
 from datetime import datetime
 
 rekognition = boto3.client('rekognition')
-s3_client = boto3.client('s3')
-sns_client = boto3.client('sns')
 
 def lambda_handler(event, context):
     """
-    Analyzes image for explicit content using AWS Rekognition.
-    Input: SNS message with submission event
-    Output: Results published to results SNS topic
+    Analyzes image for explicit content using Rekognition
+    Returns: { type, decision, labels, max_confidence }
+    decision = APPROVE | REJECT | AMBIGUOUS
+    rule:
+      - If ANY moderation label has confidence > 75 → REJECT
+      - Else if ANY label has confidence between 40 and 75 → AMBIGUOUS
+      - Else (no labels or all < 40) → APPROVE
     """
-    
     try:
-        # Parse SNS message
-        message = json.loads(event['Records'][0]['Sns']['Message'])
-        submission_id = message['submission_id']
-        image_key = message.get('image_key')
+        submission_id = event.get('submission_id')
+        image_key = event.get('image_key')
         
-        # If no image, skip
         if not image_key:
-            print(f"No image for {submission_id}, skipping image moderation")
-            return {'statusCode': 200}
+            return {
+                'type': 'image',
+                'submission_id': submission_id,
+                'skipped': True
+            }
         
         bucket = os.getenv('UPLOADS_BUCKET')
         
         # Call Rekognition
         response = rekognition.detect_moderation_labels(
-            Image={
-                'S3Object': {
-                    'Bucket': bucket,
-                    'Name': image_key
-                }
-            }
+            Image={'S3Object': {'Bucket': bucket, 'Name': image_key}}
         )
         
-        # Analyze results
-        explicit_labels = [
-            label for label in response['ModerationLabels']
-            if label['Confidence'] > 80  # Confidence threshold
-        ]
+        labels = response.get('ModerationLabels', [])
         
-        # Decision: image approved if no explicit content detected
-        image_approved = len(explicit_labels) == 0
+        max_confidence = max([l['Confidence'] for l in labels], default=0.0)
         
-        # Create result event
+        # Default decision
+        decision = 'APPROVE'
+        
+        # Apply your rule
+        for label in labels:
+            conf = label['Confidence']
+            if conf > 75:
+                decision = 'REJECT'
+                break
+            elif 40 <= conf <= 75 and decision != 'REJECT':
+                decision = 'AMBIGUOUS'
+        
         result = {
+            'type': 'image',
             'submission_id': submission_id,
-            'moderation_type': 'image',
-            'approved': image_approved,
-            'confidence': max([l['Confidence'] for l in response['ModerationLabels']], 0),
-            'labels': [l['Name'] for l in explicit_labels],
-            'timestamp': datetime.utcnow().isoformat()
+            'decision': decision,
+            'labels': [l['Name'] for l in labels],
+            'max_confidence': round(max_confidence, 2),
+            'label_details': [
+                {'name': l['Name'], 'confidence': round(l['Confidence'], 2)}
+                for l in labels
+            ],
+            'timestamp': datetime.now().isoformat()
         }
         
-        # Publish to results topic
-        sns_client.publish(
-            TopicArn=os.getenv('RESULTS_TOPIC_ARN'),
-            Message=json.dumps(result)
-        )
-        
-        print(f"Image moderation complete: {submission_id} - Approved: {image_approved}")
-        return {'statusCode': 200}
-        
+        print(f"Image moderation: {submission_id} - Decision: {decision}")
+        return result
+    
     except Exception as e:
         print(f"Image moderation error: {str(e)}")
-        # Return error result to decision handler
-        return {'statusCode': 500}
+        return {
+            'type': 'image',
+            'submission_id': event.get('submission_id'),
+            'decision': 'AMBIGUOUS',
+            'error': str(e)
+        }

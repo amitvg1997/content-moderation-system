@@ -5,30 +5,32 @@ from aws_cdk import (
     aws_dynamodb as dynamodb,
     aws_sns as sns,
     aws_iam as iam,
-    App,
-    RemovalPolicy,
+    aws_stepfunctions as sfn,
+    aws_stepfunctions_tasks as sfn_tasks,
+    aws_sns_subscriptions as subscriptions,
     Stack,
-    Duration,
-    CfnOutput
+    RemovalPolicy,
+    CfnOutput,
+    Duration
 )
 from constructs import Construct
-import os
+import json
 
 class ModerationSystemStack(Stack):
     def __init__(self, scope: Construct, construct_id: str, **kwargs):
         super().__init__(scope, construct_id, **kwargs)
 
-        # Configuration
-        region = "eu-west-1"  # Ireland
-        
+        region = "eu-west-1"
+        admin_email = "amitvg1997@gmail.com"  
+
         # ============================================================================
-        # PART 1: S3 BUCKET FOR FRONTEND & IMAGE UPLOADS
+        # PART 1: S3 BUCKETS
         # ============================================================================
         
-        # Frontend bucket (static website)
+        # Frontend bucket (user submission UI)
         frontend_bucket = s3.Bucket(
             self, "FrontendBucket",
-            bucket_name="amit-content-moderation-frontend",
+            bucket_name=f"amit-moderation-frontend",
             block_public_access=s3.BlockPublicAccess(
                 block_public_acls=False,
                 block_public_policy=False,
@@ -37,10 +39,10 @@ class ModerationSystemStack(Stack):
             ),
             versioned=True,
             encryption=s3.BucketEncryption.S3_MANAGED,
-            removal_policy=RemovalPolicy.RETAIN  
+            removal_policy=RemovalPolicy.RETAIN
         )
 
-        # Enable static website hosting
+        # Allow public read
         frontend_bucket.add_to_resource_policy(
             iam.PolicyStatement(
                 actions=["s3:GetObject"],
@@ -49,10 +51,33 @@ class ModerationSystemStack(Stack):
             )
         )
 
-        # Image uploads bucket (CORS enabled for browser uploads)
+        # Admin bucket (admin review UI)
+        admin_bucket = s3.Bucket(
+            self, "AdminBucket",
+            bucket_name=f"amit-moderation-admin-frontend",
+            block_public_access=s3.BlockPublicAccess(
+                block_public_acls=False,
+                block_public_policy=False,
+                ignore_public_acls=False,
+                restrict_public_buckets=False
+            ),
+            versioned=True,
+            encryption=s3.BucketEncryption.S3_MANAGED,
+            removal_policy=RemovalPolicy.RETAIN
+        )
+
+        admin_bucket.add_to_resource_policy(
+            iam.PolicyStatement(
+                actions=["s3:GetObject"],
+                resources=[admin_bucket.arn_for_objects("*")],
+                principals=[iam.AnyPrincipal()]
+            )
+        )
+
+        # Image uploads bucket (private, CORS enabled)
         uploads_bucket = s3.Bucket(
             self, "UploadsBucket",
-            bucket_name="amit-content-moderation-uploads",
+            bucket_name=f"amit-moderation-uploads",
             block_public_access=s3.BlockPublicAccess(
                 block_public_acls=True,
                 block_public_policy=True,
@@ -63,7 +88,6 @@ class ModerationSystemStack(Stack):
             removal_policy=RemovalPolicy.RETAIN
         )
 
-        # CORS policy for uploads (allow browser to upload)
         uploads_bucket.add_cors_rule(
             allowed_methods=[s3.HttpMethods.PUT, s3.HttpMethods.POST],
             allowed_origins=["*"],
@@ -71,190 +95,333 @@ class ModerationSystemStack(Stack):
         )
 
         # ============================================================================
-        # PART 2: DYNAMODB TABLE
+        # PART 2: DYNAMODB TABLES
         # ============================================================================
         
-        moderation_table = dynamodb.Table(
-            self, "ModerationTable",
-            table_name="amit-content-moderation-results",
+        # Approved submissions
+        approved_table = dynamodb.Table(
+            self, "ApprovedTable",
+            table_name="amit-moderation-approved",
             partition_key=dynamodb.Attribute(
                 name="submission_id",
                 type=dynamodb.AttributeType.STRING
             ),
-            sort_key=dynamodb.Attribute(
-                name="timestamp",
-                type=dynamodb.AttributeType.STRING
-            ),
-            billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,  
+            billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
             removal_policy=RemovalPolicy.RETAIN,
             stream=dynamodb.StreamViewType.NEW_IMAGE
         )
 
-        # ============================================================================
-        # PART 3: SNS TOPICS (Event pub/sub)
-        # ============================================================================
-        
-        # Topic 1: Submit event (image + text)
-        submission_topic = sns.Topic(
-            self, "SubmissionTopic",
-            topic_name="amit-content-moderation-submission"
+        # Review queue (admin intervention needed)
+        review_table = dynamodb.Table(
+            self, "ReviewTable",
+            table_name="amit-moderation-review",
+            partition_key=dynamodb.Attribute(
+                name="submission_id",
+                type=dynamodb.AttributeType.STRING
+            ),
+            billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
+            removal_policy=RemovalPolicy.RETAIN,
+            stream=dynamodb.StreamViewType.NEW_IMAGE
         )
 
-        # Topic 2: Results (after moderation)
-        results_topic = sns.Topic(
-            self, "ResultsTopic",
-            topic_name="amit-content-moderation-results"
+        # GSI for listing pending reviews by status
+        review_table.add_global_secondary_index(
+            index_name="status-index",
+            partition_key=dynamodb.Attribute(
+                name="status",
+                type=dynamodb.AttributeType.STRING
+            ),
+            sort_key=dynamodb.Attribute(
+                name="created_at",
+                type=dynamodb.AttributeType.STRING
+            ),
+            projection_type=dynamodb.ProjectionType.ALL
         )
 
         # ============================================================================
-        # PART 4: LAMBDA FUNCTIONS
+        # PART 3: SNS TOPICS
         # ============================================================================
         
-        # Create Lambda execution role with specific permissions
+        # Admin notification topic
+        admin_notification_topic = sns.Topic(
+            self, "AdminNotificationTopic",
+            topic_name="amit-moderation-admin-notification"
+        )
+
+        # Subscribe admin email
+        admin_notification_topic.add_subscription(
+            subscriptions.EmailSubscription(admin_email)
+        )
+
+        # ============================================================================
+        # PART 4: IAM ROLE FOR LAMBDAS
+        # ============================================================================
+        
         lambda_role = iam.Role(
             self, "LambdaExecutionRole",
             assumed_by=iam.ServicePrincipal("lambda.amazonaws.com")
         )
 
-        # Add permissions
         lambda_role.add_managed_policy(
             iam.ManagedPolicy.from_aws_managed_policy_name("service-role/AWSLambdaBasicExecutionRole")
         )
-        uploads_bucket.grant_read_write(lambda_role)
-        moderation_table.grant_read_write_data(lambda_role)
-        submission_topic.grant_publish(lambda_role)
-        results_topic.grant_publish(lambda_role)
 
-        # Add explicit permissions for Rekognition & Comprehend
+        # S3 permissions
+        uploads_bucket.grant_read_write(lambda_role)
+        frontend_bucket.grant_read(lambda_role)
+        admin_bucket.grant_read(lambda_role)
+
+        # DynamoDB permissions
+        approved_table.grant_read_write_data(lambda_role)
+        review_table.grant_read_write_data(lambda_role)
+
+        # SNS permissions
+        admin_notification_topic.grant_publish(lambda_role)
+
+        # Rekognition & Comprehend permissions
         lambda_role.add_to_policy(iam.PolicyStatement(
             actions=[
                 "rekognition:DetectModerationLabels",
-                "comprehend:DetectSentiment",
-                "comprehend:DetectToxicity"
+                "comprehend:DetectSentiment"
             ],
-            resources=["*"]  # These services don't support resource-based policies
+            resources=["*"]
         ))
 
-        # Lambda 1: Main Handler (receives submission, coordinates)
-        main_handler = lambda_.Function(
-            self, "MainHandler",
+        # Step Functions permissions
+        lambda_role.add_to_policy(iam.PolicyStatement(
+            actions=[
+                "states:StartExecution"
+            ],
+            resources=["*"]
+        ))
+
+        # ============================================================================
+        # PART 5: LAMBDA FUNCTIONS
+        # ============================================================================
+        
+        # Text Moderator
+        text_moderator = lambda_.Function(
+            self, "TextModerator",
             runtime=lambda_.Runtime.PYTHON_3_11,
-            function_name="amit-content-moderation-main-handler",
             handler="index.lambda_handler",
-            code=lambda_.Code.from_asset("lambda/main_handler"),
+            code=lambda_.Code.from_asset("../lambda/text_moderator"),
+            timeout=Duration.seconds(30),
+            role=lambda_role
+        )
+
+        # Image Moderator
+        image_moderator = lambda_.Function(
+            self, "ImageModerator",
+            runtime=lambda_.Runtime.PYTHON_3_11,
+            handler="index.lambda_handler",
+            code=lambda_.Code.from_asset("../lambda/image_moderator"),
             timeout=Duration.seconds(30),
             environment={
-                "SUBMISSION_TOPIC_ARN": submission_topic.topic_arn,
-                "RESULTS_TOPIC_ARN": results_topic.topic_arn,
                 "UPLOADS_BUCKET": uploads_bucket.bucket_name
             },
             role=lambda_role
         )
 
-        # Lambda 2: Image Moderation (Rekognition)
-        image_moderator = lambda_.Function(
-            self, "ImageModerator",
-            runtime=lambda_.Runtime.PYTHON_3_11,
-            function_name="amit-content-moderation-image-moderator",
-            handler="index.lambda_handler",
-            code=lambda_.Code.from_asset("lambda/image_moderator"),
-            timeout=Duration.seconds(30),
-            environment={
-                "UPLOADS_BUCKET": uploads_bucket.bucket_name,
-                "RESULTS_TOPIC_ARN": results_topic.topic_arn
-            },
-            role=lambda_role
-        )
-
-        # Lambda 3: Text Moderation (Comprehend)
-        text_moderator = lambda_.Function(
-            self, "TextModerator",
-            runtime=lambda_.Runtime.PYTHON_3_11,
-            function_name="amit-content-moderation-text-moderator",
-            handler="index.lambda_handler",
-            code=lambda_.Code.from_asset("lambda/text_moderator"),
-            timeout=Duration.seconds(30),
-            environment={
-                "RESULTS_TOPIC_ARN": results_topic.topic_arn
-            },
-            role=lambda_role
-        )
-
-        # Lambda 4: Decision (decides if save to DB)
+        # Decision Handler
         decision_handler = lambda_.Function(
             self, "DecisionHandler",
             runtime=lambda_.Runtime.PYTHON_3_11,
-            function_name="amit-content-moderation-decision-handler",
             handler="index.lambda_handler",
-            code=lambda_.Code.from_asset("lambda/decision_handler"),
+            code=lambda_.Code.from_asset("../lambda/decision_handler"),
             timeout=Duration.seconds(30),
             environment={
-                "TABLE_NAME": moderation_table.table_name
+                "APPROVED_TABLE": approved_table.table_name,
+                "REVIEW_TABLE": review_table.table_name,
+                "ADMIN_NOTIFICATION_TOPIC": admin_notification_topic.topic_arn
+            },
+            role=lambda_role
+        )
+
+        # Submit Handler
+        submit_handler = lambda_.Function(
+            self, "SubmitHandler",
+            runtime=lambda_.Runtime.PYTHON_3_11,
+            handler="index.lambda_handler",
+            code=lambda_.Code.from_asset("../lambda/submit_handler"),
+            timeout=Duration.seconds(30),
+            environment={
+                "STATE_MACHINE_ARN": "WILL_BE_SET_AFTER",  # Set after state machine creation
+                "UPLOADS_BUCKET": uploads_bucket.bucket_name
+            },
+            role=lambda_role
+        )
+
+        # Get Status Handler
+        get_status_handler = lambda_.Function(
+            self, "GetStatusHandler",
+            runtime=lambda_.Runtime.PYTHON_3_11,
+            handler="index.lambda_handler",
+            code=lambda_.Code.from_asset("../lambda/get_status"),
+            timeout=Duration.seconds(10),
+            environment={
+                "APPROVED_TABLE": approved_table.table_name,
+                "REVIEW_TABLE": review_table.table_name
+            },
+            role=lambda_role
+        )
+
+        # Admin List Handler
+        admin_list_handler = lambda_.Function(
+            self, "AdminListHandler",
+            runtime=lambda_.Runtime.PYTHON_3_11,
+            handler="index.lambda_handler",
+            code=lambda_.Code.from_asset("../lambda/admin_list"),
+            timeout=Duration.seconds(10),
+            environment={
+                "REVIEW_TABLE": review_table.table_name
+            },
+            role=lambda_role
+        )
+
+        # Admin Decision Handler
+        admin_decision_handler = lambda_.Function(
+            self, "AdminDecisionHandler",
+            runtime=lambda_.Runtime.PYTHON_3_11,
+            handler="index.lambda_handler",
+            code=lambda_.Code.from_asset("../lambda/admin_decision"),
+            timeout=Duration.seconds(30),
+            environment={
+                "REVIEW_TABLE": review_table.table_name,
+                "APPROVED_TABLE": approved_table.table_name
             },
             role=lambda_role
         )
 
         # ============================================================================
-        # PART 5: SNS SUBSCRIPTIONS (Wire them up)
+        # PART 6: STEP FUNCTIONS STATE MACHINE
         # ============================================================================
         
-        # submission_topic → triggers image_moderator AND text_moderator (fan-out)
-        submission_topic.add_subscription(
-            sns.LambdaSubscription(image_moderator)
-        )
-        submission_topic.add_subscription(
-            sns.LambdaSubscription(text_moderator)
+        # Create parallel tasks
+        text_task = sfn_tasks.LambdaInvoke(
+            self, "TextModerationTask",
+            lambda_function=text_moderator,
+            output_path="$.Payload"
         )
 
-        # results_topic → triggers decision_handler
-        results_topic.add_subscription(
-            sns.LambdaSubscription(decision_handler)
+        image_task = sfn_tasks.LambdaInvoke(
+            self, "ImageModerationTask",
+            lambda_function=image_moderator,
+            output_path="$.Payload"
         )
+
+        # Parallel state
+        parallel_state = sfn.Parallel(
+            self, "ModerationParallel"
+        )
+        parallel_state.branch(text_task)
+        parallel_state.branch(image_task)
+
+        # Decision task
+        decision_task = sfn_tasks.LambdaInvoke(
+            self, "DecisionTask",
+            lambda_function=decision_handler,
+            payload=sfn.TaskInput.from_object({
+                "moderation_results.$": "$",
+                "submission_id.$": "$.submission_id",
+                "text.$": "$.text",
+                "image_key.$": "$.image_key"
+            }),
+            output_path="$.Payload"
+        )
+
+        # Build state machine
+        definition = parallel_state.next(decision_task)
+
+        state_machine = sfn.StateMachine(
+            self, "ModerationStateMachine",
+            definition=definition,
+            timeout=Duration.minutes(5),
+            state_machine_name="amit-moderation-state-machine"
+        )
+
+        # Update submit handler with state machine ARN
+        submit_handler.add_environment("STATE_MACHINE_ARN", state_machine.state_machine_arn)
 
         # ============================================================================
-        # PART 6: API GATEWAY (HTTP endpoint)
+        # PART 7: API GATEWAY
         # ============================================================================
         
         api = apigw.RestApi(
             self, "ModerationAPI",
-            rest_api_name="amit-content-moderation-api",
-            description="Content Media Moderation API"
+            rest_api_name="amit-moderation-api",
+            default_cors_preflight_options=apigw.CorsOptions(
+                allow_origins=apigw.Cors.ALL_ORIGINS,
+                allow_methods=apigw.Cors.ALL_METHODS,
+                allow_headers=["Content-Type"]
+            )
         )
 
-        # POST /moderate endpoint
-        moderate_resource = api.root.add_resource("moderate")
-        moderate_resource.add_method(
+        # POST /submit
+        submit_resource = api.root.add_resource("submit")
+        submit_resource.add_method(
             "POST",
-            apigw.LambdaIntegration(main_handler),
-            request_parameters={
-                "method.request.header.Content-Type": True
-            }
+            apigw.LambdaIntegration(submit_handler)
+        )
+
+        # GET /status/{submissionId}
+        status_resource = api.root.add_resource("status")
+        status_id_resource = status_resource.add_resource("{submissionId}")
+        status_id_resource.add_method(
+            "GET",
+            apigw.LambdaIntegration(get_status_handler)
+        )
+
+        # GET /admin/pending
+        admin_resource = api.root.add_resource("admin")
+        admin_pending_resource = admin_resource.add_resource("pending")
+        admin_pending_resource.add_method(
+            "GET",
+            apigw.LambdaIntegration(admin_list_handler)
+        )
+
+        # POST /admin/decision
+        admin_decision_resource = admin_resource.add_resource("decision")
+        admin_decision_resource.add_method(
+            "POST",
+            apigw.LambdaIntegration(admin_decision_handler)
         )
 
         # ============================================================================
-        # PART 7: OUTPUTS
+        # PART 8: OUTPUTS
         # ============================================================================
         
         CfnOutput(
             self, "FrontendBucketName",
             value=frontend_bucket.bucket_name,
-            description="S3 bucket for static frontend hosting"
+            description="S3 bucket for user frontend"
         )
 
         CfnOutput(
-            self, "UploadsBucketName",
-            value=uploads_bucket.bucket_name,
-            description="S3 bucket for image uploads"
+            self, "AdminBucketName",
+            value=admin_bucket.bucket_name,
+            description="S3 bucket for admin frontend"
         )
 
         CfnOutput(
             self, "APIEndpoint",
             value=api.url,
-            description="API Gateway endpoint for submissions"
+            description="API Gateway endpoint"
         )
 
         CfnOutput(
-            self, "DynamoDBTableName",
-            value=moderation_table.table_name,
-            description="DynamoDB table for results"
+            self, "ApprovedTableName",
+            value=approved_table.table_name,
+            description="DynamoDB approved submissions table"
+        )
+
+        CfnOutput(
+            self, "ReviewTableName",
+            value=review_table.table_name,
+            description="DynamoDB review queue table"
+        )
+
+        CfnOutput(
+            self, "StateMachineArn",
+            value=state_machine.state_machine_arn,
+            description="Step Functions state machine ARN"
         )

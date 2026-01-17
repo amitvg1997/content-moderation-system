@@ -4,86 +4,126 @@ import os
 from datetime import datetime
 
 dynamodb = boto3.resource('dynamodb')
+sns_client = boto3.client('sns')
 
 def lambda_handler(event, context):
     """
-    Makes final decision: if ALL checks pass, save to DynamoDB.
-    Tracks moderation results and decides approval.
+    Receives array of [text_result, image_result] from parallel tasks
+    Determines final decision: APPROVE | REJECT | REVIEW
+    APPROVE → save to approved table
+    REJECT → return rejected (no save)
+    REVIEW → save to review table and email admin
     """
-    
     try:
-        # Parse SNS message (moderation result)
-        message = json.loads(event['Records'][0]['Sns']['Message'])
-        submission_id = message['submission_id']
+        moderation_results = event.get('moderation_results', [])
+        submission_id = event.get('submission_id')
+        text = event.get('text')
+        image_key = event.get('image_key')
         
-        table = dynamodb.Table(os.getenv('TABLE_NAME'))
+        approved_table = dynamodb.Table(os.getenv('APPROVED_TABLE'))
+        review_table = dynamodb.Table(os.getenv('REVIEW_TABLE'))
+        notification_topic = os.getenv('ADMIN_NOTIFICATION_TOPIC')
         
-        # Store individual moderation result in DynamoDB
-        timestamp = datetime.utcnow().isoformat()
+        # Parse results
+        text_result = None
+        image_result = None
         
-        # table.put_item(
-        #     Item={
-        #         'submission_id': submission_id,
-        #         'timestamp': timestamp,
-        #         'moderation_type': message.get('moderation_type'),
-        #         'approved': message.get('approved'),
-        #         'details': json.dumps({
-        #             'sentiment': message.get('sentiment'),
-        #             'confidence_scores': message.get('confidence_scores'),
-        #             'labels': message.get('labels')
-        #         }),
-        #         'ttl': int(datetime.utcnow().timestamp()) + (86400 * 30)  # 30 days
-        #     }
-        # )
+        for result in moderation_results:
+            if result.get('type') == 'text':
+                text_result = result
+            elif result.get('type') == 'image':
+                image_result = result
         
-        # Query all results for this submission
-        response = table.query(
-            KeyConditionExpression='submission_id = :id',
-            ExpressionAttributeValues={':id': submission_id}
-        )
+        # Determine overall decision
+        has_reject = False
+        has_ambiguous = False
         
-        results = response['Items']
+        if text_result and not text_result.get('skipped'):
+            if text_result.get('decision') == 'REJECT':
+                has_reject = True
+            elif text_result.get('decision') == 'AMBIGUOUS':
+                has_ambiguous = True
         
-        # Check if we have all results (image + text, or just one if not provided)
-        image_result = next((r for r in results if r.get('moderation_type') == 'image'), None)
-        text_result = next((r for r in results if r.get('moderation_type') == 'text'), None)
+        if image_result and not image_result.get('skipped'):
+            if image_result.get('decision') == 'REJECT':
+                has_reject = True
+            elif image_result.get('decision') == 'AMBIGUOUS':
+                has_ambiguous = True
         
-        # Determine final approval
-        all_checks_pass = True
+        timestamp = datetime.now().isoformat()
         
-        if image_result:
-            all_checks_pass = all_checks_pass and image_result['approved']
+        if has_reject:
+            final_decision = 'REJECT'
+        elif has_ambiguous:
+            final_decision = 'REVIEW'
+        else:
+            final_decision = 'APPROVE'
         
-        if text_result:
-            all_checks_pass = all_checks_pass and text_result['approved']
+        # Save based on decision
+        if final_decision == 'APPROVE':
+            approved_table.put_item(
+                Item={
+                    'submission_id': submission_id,
+                    'status': 'APPROVED',
+                    'text': text or '',
+                    'image_key': image_key or '',
+                    'approved_at': timestamp,
+                    'ttl': int(datetime.now().timestamp()) + (86400 * 30)
+                }
+            )
         
-        print(f"Submission {submission_id}: Final decision = {all_checks_pass}")
-        print(f"  Image result: {image_result}")
-        print(f"  Text result: {text_result}")
+        elif final_decision == 'REVIEW':
+            review_table.put_item(
+                Item={
+                    'submission_id': submission_id,
+                    'status': 'PENDING_REVIEW',
+                    'text': text or '',
+                    'image_key': image_key or '',
+                    'created_at': timestamp,
+                    'moderation_details': json.dumps({
+                        'text_decision': text_result.get('decision') if text_result else None,
+                        'text_sentiment': text_result.get('sentiment') if text_result else None,
+                        'image_decision': image_result.get('decision') if image_result else None,
+                        'image_labels': image_result.get('labels') if image_result else []
+                    }),
+                    'ttl': int(datetime.now().timestamp()) + (86400 * 30)
+                }
+            )
+            
+            # Send admin notification
+            message = f"""
+New content requires admin review:
+
+Submission ID: {submission_id}
+
+Text: {(text[:100] + '...') if text and len(text) > 100 else text or '(none)'}
+Image: {image_key or '(none)'}
+
+Text Decision: {text_result.get('decision') if text_result else 'N/A'} ({text_result.get('sentiment') if text_result else 'N/A'})
+Image Decision: {image_result.get('decision') if image_result else 'N/A'}
+
+Please review on Admin Dashboard!
+            """
+            
+            sns_client.publish(
+                TopicArn=notification_topic,
+                Subject='Content Requires Review',
+                Message=message
+            )
         
-        # Store final decision
-        table.put_item(
-            Item={
-                'submission_id': submission_id,
-                'timestamp': f"{timestamp}#final",
-                'moderation_type': 'final_decision',
-                'approved': all_checks_pass,
-                'details': json.dumps({
-                    'image_approved': image_result['approved'] if image_result else None,
-                    'text_approved': text_result['approved'] if text_result else None
-                }),
-                'ttl': int(datetime.utcnow().timestamp()) + (86400 * 30)
-            }
-        )
-        
+        # Return result to caller (via Step Functions)
         return {
-            'statusCode': 200,
-            'body': json.dumps({
-                'submission_id': submission_id,
-                'final_decision': 'approved' if all_checks_pass else 'rejected'
-            })
+            'submission_id': submission_id,
+            'final_decision': final_decision,
+            'timestamp': timestamp,
+            'text_result': text_result,
+            'image_result': image_result
         }
-        
+    
     except Exception as e:
         print(f"Decision handler error: {str(e)}")
-        return {'statusCode': 500}
+        return {
+            'submission_id': event.get('submission_id'),
+            'final_decision': 'ERROR',
+            'error': str(e)
+        }
