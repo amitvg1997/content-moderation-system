@@ -388,20 +388,19 @@ class ModerationSystemStack(Stack):
             "default-4XX",
             type=apigw.ResponseType.DEFAULT_4_XX,
             response_headers={
-                "Access-Control-Allow-Origin": apigw.Cors.ALL_ORIGINS,
-                "Access-Control-Allow-Headers": apigw.Cors.DEFAULT_HEADERS,
-                "Access-Control-Allow-Methods": apigw.Cors.ALL_METHODS
-            }
-        )
+                "Access-Control-Allow-Origin": "'*'",
+                "Access-Control-Allow-Headers": "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'",
+                "Access-Control-Allow-Methods": "'POST,OPTIONS'"
+            })
+        
         api.add_gateway_response(
             "default-5XX",
             type=apigw.ResponseType.DEFAULT_5_XX,
             response_headers={
-                "Access-Control-Allow-Origin": apigw.Cors.ALL_ORIGINS,
-                "Access-Control-Allow-Headers": apigw.Cors.DEFAULT_HEADERS,
-                "Access-Control-Allow-Methods": apigw.Cors.ALL_METHODS
-            }
-        )
+                "Access-Control-Allow-Origin": "'*'",
+                "Access-Control-Allow-Headers": "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'",
+                "Access-Control-Allow-Methods": "'POST,OPTIONS'"
+            })
 
 
         # POST /submit
