@@ -202,6 +202,7 @@ class ModerationSystemStack(Stack):
         # Text Moderator
         text_moderator = lambda_.Function(
             self, "TextModerator",
+            function_name="amit-moderation-text-moderator",
             runtime=lambda_.Runtime.PYTHON_3_11,
             handler="index.lambda_handler",
             code=lambda_.Code.from_asset("../lambda/text_moderator"),
@@ -212,6 +213,7 @@ class ModerationSystemStack(Stack):
         # Image Moderator
         image_moderator = lambda_.Function(
             self, "ImageModerator",
+            function_name="amit-moderation-image-moderator",
             runtime=lambda_.Runtime.PYTHON_3_11,
             handler="index.lambda_handler",
             code=lambda_.Code.from_asset("../lambda/image_moderator"),
@@ -225,6 +227,7 @@ class ModerationSystemStack(Stack):
         # Decision Handler
         decision_handler = lambda_.Function(
             self, "DecisionHandler",
+            function_name="amit-moderation-decision-handler",
             runtime=lambda_.Runtime.PYTHON_3_11,
             handler="index.lambda_handler",
             code=lambda_.Code.from_asset("../lambda/decision_handler"),
@@ -240,6 +243,7 @@ class ModerationSystemStack(Stack):
         # Submit Handler
         submit_handler = lambda_.Function(
             self, "SubmitHandler",
+            function_name="amit-moderation-submit-handler",
             runtime=lambda_.Runtime.PYTHON_3_11,
             handler="index.lambda_handler",
             code=lambda_.Code.from_asset("../lambda/submit_handler"),
@@ -254,6 +258,7 @@ class ModerationSystemStack(Stack):
         # Get Status Handler
         get_status_handler = lambda_.Function(
             self, "GetStatusHandler",
+            function_name="amit-moderation-getStatus-handler",
             runtime=lambda_.Runtime.PYTHON_3_11,
             handler="index.lambda_handler",
             code=lambda_.Code.from_asset("../lambda/get_status"),
@@ -268,6 +273,7 @@ class ModerationSystemStack(Stack):
         # Admin List Handler
         admin_list_handler = lambda_.Function(
             self, "AdminListHandler",
+            function_name="amit-moderation-adminList-handler",
             runtime=lambda_.Runtime.PYTHON_3_11,
             handler="index.lambda_handler",
             code=lambda_.Code.from_asset("../lambda/admin_list"),
@@ -281,6 +287,7 @@ class ModerationSystemStack(Stack):
         # Admin Decision Handler
         admin_decision_handler = lambda_.Function(
             self, "AdminDecisionHandler",
+            function_name="amit-moderation-admin-decision-handler",
             runtime=lambda_.Runtime.PYTHON_3_11,
             handler="index.lambda_handler",
             code=lambda_.Code.from_asset("../lambda/admin_decision"),
