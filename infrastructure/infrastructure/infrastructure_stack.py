@@ -338,7 +338,8 @@ class ModerationSystemStack(Stack):
 
         # Parallel state
         parallel_state = sfn.Parallel(
-            self, "ModerationParallel"
+            self, "ModerationParallel",
+            result_path="$.moderation_results"
         )
         parallel_state.branch(text_task)
         parallel_state.branch(image_task)
@@ -348,7 +349,7 @@ class ModerationSystemStack(Stack):
             self, "DecisionTask",
             lambda_function=decision_handler,
             payload=sfn.TaskInput.from_object({
-                "moderation_results.$": "$",
+                "moderation_results.$": "$.moderation_results",
                 "submission_id.$": "$.submission_id",
                 "text.$": "$.text",
                 "image_key.$": "$.image_key"
