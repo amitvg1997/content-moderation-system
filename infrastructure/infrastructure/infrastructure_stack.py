@@ -39,7 +39,7 @@ class ModerationSystemStack(Stack):
             ),
             versioned=True,
             encryption=s3.BucketEncryption.S3_MANAGED,
-            removal_policy=RemovalPolicy.RETAIN
+            removal_policy=RemovalPolicy.RETAIN,
             website_index_document="index.html"
         )
 
@@ -64,7 +64,7 @@ class ModerationSystemStack(Stack):
             ),
             versioned=True,
             encryption=s3.BucketEncryption.S3_MANAGED,
-            removal_policy=RemovalPolicy.RETAIN
+            removal_policy=RemovalPolicy.RETAIN,
             website_index_document="admin.html"
         )
         
