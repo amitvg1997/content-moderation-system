@@ -49,12 +49,12 @@ jobs:
       - name: Deploy frontend to S3
         run: |
           FRONTEND_BUCKET=$(aws cloudformation describe-stacks --stack-name ModerationSystem --query 'Stacks[0].Outputs[?OutputKey==`FrontendBucketName`].OutputValue' --output text --region eu-west-1)
-          aws s3 sync frontend/index.html s3://$FRONTEND_BUCKET/ --delete --region eu-west-1
+          aws s3 cp frontend/index.html s3://$FRONTEND_BUCKET/index.html --delete --region eu-west-1
       
       - name: Deploy admin to S3
         run: |
           ADMIN_BUCKET=$(aws cloudformation describe-stacks --stack-name ModerationSystem --query 'Stacks[0].Outputs[?OutputKey==`AdminBucketName`].OutputValue' --output text --region eu-west-1)
-          aws s3 sync frontend/admin.html s3://$ADMIN_BUCKET/ --delete --region eu-west-1
+          aws s3 cp frontend/admin.html s3://$ADMIN_BUCKET/admin.html --delete --region eu-west-1
       
       - name: Print outputs
         run: |
