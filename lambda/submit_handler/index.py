@@ -119,12 +119,17 @@ def lambda_handler(event, context):
             print(f"Execution already exists for submission_id={submission_id}, ignoring duplicate request")
 
             return {
-                'statusCode': 200,
+                'statusCode': 202,
                 'headers': {
-                        'Access-Control-Allow-Origin': '*',
-                        'Access-Control-Allow-Methods': 'POST, OPTIONS',
-                        'Access-Control-Allow-Headers': 'Content-Type'
-                    }
+                    'Access-Control-Allow-Origin': '*',
+                    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+                    'Access-Control-Allow-Headers': 'Content-Type'
+                },
+                'body': json.dumps({
+                    'submission_id': submission_id,
+                    'status': 'pending',
+                    'message': 'Content submitted for moderation'
+                })
             }
 
         # Any other error is real and should surface
