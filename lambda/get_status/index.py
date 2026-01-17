@@ -95,7 +95,7 @@ def lambda_handler(event, context):
         
         # Not found (might still be processing)
         return {
-            'statusCode': 200,
+            'statusCode': 404,
             'headers': {
                     'Access-Control-Allow-Origin': '*',
                     'Access-Control-Allow-Methods': '*',
@@ -103,8 +103,8 @@ def lambda_handler(event, context):
                 },
             'body': json.dumps({
                 'submission_id': submission_id,
-                'status': 'pending',
-                'message': 'Still processing. Please check after sometime.'
+                'status': 'Not Found',
+                'message': 'Please enter a valid submission id.'
             })
         }
     

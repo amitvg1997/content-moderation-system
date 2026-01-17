@@ -2,10 +2,13 @@ import json
 import boto3
 import os
 from datetime import datetime
-from logging import Logger
+import logging
 
 dynamodb = boto3.resource('dynamodb')
 sns_client = boto3.client('sns')
+
+logger = logging.getLogger(__name__)  
+logger.setLevel(logging.INFO)
 
 def lambda_handler(event, context):
     """
@@ -17,13 +20,16 @@ def lambda_handler(event, context):
     """
     try:
         moderation_results = event.get('moderation_results', [])
-        Logger.info("Moderation Results: "+str(moderation_results))
+        logger.info("Moderation Results: %s", moderation_results)
         submission_id = event.get('submission_id')
         text = event.get('text')
         image_key = event.get('image_key')
-        Logger.info(
-            f"text: {text} image_key: {image_key} submissionId: {submission_id} "
-            f"Text skipped?: {text_result.get('skipped')} Image skipped?: {image_result.get('skipped')}"
+        logger.info("Moderation Results: %s", moderation_results)
+        logger.info(
+            "text: %s image_key: %s submissionId: %s",
+            text,
+            image_key,
+            submission_id
         )       
         approved_table = dynamodb.Table(os.getenv('APPROVED_TABLE'))
         review_table = dynamodb.Table(os.getenv('REVIEW_TABLE'))

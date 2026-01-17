@@ -9,7 +9,7 @@ def lambda_handler(event, context):
     """
     POST /admin/decision
     Body: { submissionId, decision }
-    decision = APPROVE | REJECT
+    decision = APPROVED | REJECTED
     Moves from review table to approved table or marks rejected
     """
     try:
@@ -80,7 +80,7 @@ def lambda_handler(event, context):
             UpdateExpression='SET #status = :status, resolved_at = :resolved_at',
             ExpressionAttributeNames={'#status': 'status'},
             ExpressionAttributeValues={
-                ':status': decision,
+                ':status': "REJECTED",
                 ':resolved_at': timestamp
             }
         )
