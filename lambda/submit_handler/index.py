@@ -3,6 +3,7 @@ import boto3
 import uuid
 import os
 from datetime import datetime
+from botocore.exceptions import ClientError
 
 sfn_client = boto3.client('stepfunctions')
 s3_client = boto3.client('s3')
@@ -109,8 +110,24 @@ def lambda_handler(event, context):
                 })
             }
     
-    except Exception as e:
-        print(f"Error: {str(e)}")
+    except ClientError as e:
+
+        error_code = e.response['Error']['Code']
+
+        if error_code == 'ExecutionAlreadyExists':
+            # This is NOT an error in our case
+            print(f"Execution already exists for submission_id={submission_id}, ignoring duplicate request")
+
+            return {
+                'statusCode': 200,
+                'headers': {
+                        'Access-Control-Allow-Origin': '*',
+                        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+                        'Access-Control-Allow-Headers': 'Content-Type'
+                    }
+            }
+
+        # Any other error is real and should surface
         return {
             'statusCode': 500,
             'headers': {
