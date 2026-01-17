@@ -386,7 +386,7 @@ class ModerationSystemStack(Stack):
         # CORS for 4XX/5XX errors
         api.add_gateway_response(
             "default-4XX",
-            type=apigw.ResponseType.DEFAULT_4XX,
+            type=apigw.ResponseType.DEFAULT_4_XX,
             response_headers={
                 "Access-Control-Allow-Origin": apigw.Cors.ALL_ORIGINS,
                 "Access-Control-Allow-Headers": apigw.Cors.DEFAULT_HEADERS,
@@ -395,7 +395,7 @@ class ModerationSystemStack(Stack):
         )
         api.add_gateway_response(
             "default-5XX",
-            type=apigw.ResponseType.DEFAULT_5XX,
+            type=apigw.ResponseType.DEFAULT_5_XX,
             response_headers={
                 "Access-Control-Allow-Origin": apigw.Cors.ALL_ORIGINS,
                 "Access-Control-Allow-Headers": apigw.Cors.DEFAULT_HEADERS,
