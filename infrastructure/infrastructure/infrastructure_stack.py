@@ -299,7 +299,8 @@ class ModerationSystemStack(Stack):
             code=lambda_.Code.from_asset("../lambda/admin_list"),
             timeout=Duration.seconds(10),
             environment={
-                "REVIEW_TABLE": review_table.table_name
+                "REVIEW_TABLE": review_table.table_name,
+                "UPLOADS_BUCKET": uploads_bucket.bucket_name
             },
             role=lambda_role
         )
