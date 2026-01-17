@@ -74,6 +74,23 @@ class ModerationSystemStack(Stack):
             )
         )
 
+        # Frontend bucket policy (explicitly allow public read)
+        frontend_policy = iam.PolicyStatement(
+            actions=["s3:GetObject"],
+            resources=[frontend_bucket.arn_for_objects("*")],
+            principals=[iam.AnyPrincipal()]
+        )
+        frontend_bucket.add_to_resource_policy(frontend_policy)
+
+        # Admin bucket policy
+        admin_policy = iam.PolicyStatement(
+            actions=["s3:GetObject"],
+            resources=[admin_bucket.arn_for_objects("*")],
+            principals=[iam.AnyPrincipal()]
+        )
+        admin_bucket.add_to_resource_policy(admin_policy)
+
+
         # Image uploads bucket (private, CORS enabled)
         uploads_bucket = s3.Bucket(
             self, "UploadsBucket",
