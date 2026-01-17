@@ -255,30 +255,6 @@
             padding: 2px 6px;
             border-radius: 3px;
         }
-
-        /* NEW: Refresh Status Section on Main Screen */
-        .refresh-status-section {
-            margin: 30px 0;
-            padding: 20px;
-            background: #f8f9fa;
-            border-radius: 8px;
-            border-left: 4px solid #667eea;
-            display: none;
-        }
-
-        .refresh-status-section.show {
-            display: block;
-        }
-
-        .refresh-status-section h3 {
-            color: #333;
-            margin-bottom: 15px;
-            font-size: 16px;
-        }
-
-        .refresh-status-section input[type="text"] {
-            margin-bottom: 15px;
-        }
     </style>
 </head>
 <body>
@@ -310,26 +286,6 @@
                     <button type="submit" id="submitBtn">Submit for Moderation</button>
                 </div>
             </form>
-
-            <!-- NEW: Refresh Status Section -->
-            <div class="refresh-status-section" id="refreshStatusSection">
-                <h3>🔄 Refresh Status</h3>
-                <div class="form-group">
-                    <label for="refreshSubmissionId">Submission ID</label>
-                    <input type="text" id="refreshSubmissionId" placeholder="Paste your submission ID here...">
-                </div>
-                <div class="button-group">
-                    <button onclick="refreshStatus()" type="button">Refresh Status</button>
-                </div>
-                <div class="loading" id="refreshLoading">
-                    <div class="spinner"></div>
-                    <p>Fetching status...</p>
-                </div>
-                <div class="result" id="refreshResult">
-                    <div class="result-title" id="refreshTitle"></div>
-                    <div id="refreshMessage"></div>
-                </div>
-            </div>
 
             <div class="loading" id="loading">
                 <div class="spinner"></div>
@@ -366,7 +322,6 @@
                 <div class="result-title" id="statusTitle"></div>
                 <div id="statusMessage"></div>
             </div>
-            <!-- REFRESH BUTTON REMOVED FROM HERE -->
         </div>
     </div>
 
@@ -380,15 +335,12 @@
 
         // Tab switching
         function switchTab(tabName) {
-            // Hide all tabs
             document.querySelectorAll('.tab-content').forEach(tab => {
                 tab.classList.remove('active');
             });
             document.querySelectorAll('.tab-btn').forEach(btn => {
                 btn.classList.remove('active');
             });
-
-            // Show selected tab
             document.getElementById(tabName).classList.add('active');
             event.target.classList.add('active');
         }
@@ -402,7 +354,6 @@
         // Submit form
         document.getElementById('moderationForm').addEventListener('submit', async e => {
             e.preventDefault();
-
             const text = document.getElementById('text').value.trim();
             const file = selectedFile;
 
@@ -410,12 +361,9 @@
             document.getElementById('loading').classList.add('show');
 
             try {
-                // Step 1: Submit metadata, get pre-signed URL (if image)
                 const submitResponse = await fetch(`${API_ENDPOINT}submit`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         text,
                         filename: file ? file.name : null,
@@ -426,23 +374,17 @@
                 const data = await submitResponse.json();
                 currentSubmissionId = data.submission_id;
 
-                // Step 2: If image, upload first
                 if (data.presigned_url && file) {
                     await fetch(data.presigned_url, {
                         method: 'PUT',
                         body: file,
-                        headers: {
-                            'Content-Type': file.type
-                        }
+                        headers: { 'Content-Type': file.type }
                     });
                 }
 
-                // Step 3: Submit with image_key
                 const finalSubmit = await fetch(`${API_ENDPOINT}submit`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         text,
                         image_key: data.image_key
@@ -451,13 +393,8 @@
 
                 const finalData = await finalSubmit.json();
 
-                // Show result
                 showResult('Submitted!', 'Your content is being analyzed. Check back in a few seconds.', 'pending', data.submission_id);
                 setTimeout(() => pollStatus(data.submission_id, 3000), 3000);
-
-                // Show refresh section
-                document.getElementById('refreshStatusSection').classList.add('show');
-                document.getElementById('refreshSubmissionId').value = data.submission_id;
 
             } catch (error) {
                 showResult('Error!', error.message, 'rejected');
@@ -467,7 +404,7 @@
             }
         });
 
-        // Check status manually (UPDATED FOR NEW ERROR FORMAT)
+        // Check status (UPDATED FOR "Not Found" ERROR)
         async function checkStatus() {
             const submissionId = document.getElementById('statusSubmissionId').value.trim();
             if (!submissionId) {
@@ -495,12 +432,10 @@
                     message = 'Your content did not meet moderation standards.';
                     className = 'rejected';
                 } else if (data.status === 'Not Found') {
-                    // NEW: Handle 404 error format
                     title = '❌ Not Found';
                     message = data.message || 'Please enter a valid submission id.';
                     className = 'error';
                 } else {
-                    // Pending or processing
                     title = '⏳ Pending';
                     message = 'Your content is still being processed or awaiting admin review.';
                     className = 'pending';
@@ -511,60 +446,10 @@
                 document.getElementById('statusResult').className = `result ${className} show`;
 
             } catch (error) {
-                console.error('Error:', error);
                 document.getElementById('statusLoading').style.display = 'none';
                 document.getElementById('statusTitle').textContent = 'Error';
                 document.getElementById('statusMessage').textContent = 'Failed to fetch status. Please check the submission ID.';
                 document.getElementById('statusResult').className = 'result error show';
-            }
-        }
-
-        // NEW: Refresh Status function (same as checkStatus but for main screen)
-        async function refreshStatus() {
-            const submissionId = document.getElementById('refreshSubmissionId').value.trim();
-            if (!submissionId) {
-                alert('Please enter a submission ID');
-                return;
-            }
-
-            document.getElementById('refreshLoading').classList.add('show');
-            document.getElementById('refreshResult').classList.remove('show');
-
-            try {
-                const response = await fetch(`${API_ENDPOINT}status/${submissionId}`);
-                const data = JSON.parse(await response.text());
-
-                document.getElementById('refreshLoading').classList.remove('show');
-
-                let title, message, className;
-
-                if (data.status === 'approved') {
-                    title = '✅ Approved';
-                    message = 'Your content has been approved and saved to the database!';
-                    className = 'approved';
-                } else if (data.status === 'rejected') {
-                    title = '❌ Rejected';
-                    message = 'Your content did not meet moderation standards.';
-                    className = 'rejected';
-                } else if (data.status === 'Not Found') {
-                    title = '❌ Not Found';
-                    message = data.message || 'Please enter a valid submission id.';
-                    className = 'error';
-                } else {
-                    title = '⏳ Pending';
-                    message = 'Your content is still being processed or awaiting admin review.';
-                    className = 'pending';
-                }
-
-                document.getElementById('refreshTitle').textContent = title;
-                document.getElementById('refreshMessage').textContent = message;
-                document.getElementById('refreshResult').className = `result ${className} show`;
-
-            } catch (error) {
-                document.getElementById('refreshLoading').classList.remove('show');
-                document.getElementById('refreshTitle').textContent = 'Error';
-                document.getElementById('refreshMessage').textContent = 'Failed to fetch status.';
-                document.getElementById('refreshResult').className = 'result error show';
             }
         }
 
@@ -580,7 +465,7 @@
             }
         }
 
-        // Poll for status (unchanged)
+        // Poll for status (UPDATED FOR "Not Found")
         async function pollStatus(submissionId, delay) {
             setTimeout(async () => {
                 try {
@@ -594,7 +479,6 @@
                     } else if (data.status === 'Not Found') {
                         showResult('❌ Not Found', data.message || 'Please enter a valid submission id.', 'error', submissionId);
                     } else {
-                        // Still pending, poll again
                         setTimeout(() => pollStatus(submissionId, 5000), 5000);
                     }
                 } catch (error) {
