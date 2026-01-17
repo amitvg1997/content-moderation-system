@@ -40,6 +40,11 @@ def lambda_handler(event, context):
             
             return {
                 'statusCode': 200,
+                'headers': {
+                    'Access-Control-Allow-Origin': '*',
+                    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+                    'Access-Control-Allow-Headers': 'Content-Type'
+                },
                 'body': json.dumps({
                     'submission_id': submission_id,
                     'presigned_url': presigned_url,
@@ -57,12 +62,17 @@ def lambda_handler(event, context):
                     'submission_id': submission_id,
                     'text': text,
                     'image_key': image_key,
-                    'created_at': datetime.utcnow().isoformat()
+                    'created_at': datetime.now().isoformat()
                 })
             )
             
             return {
                 'statusCode': 202,
+                'headers': {
+                    'Access-Control-Allow-Origin': '*',
+                    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+                    'Access-Control-Allow-Headers': 'Content-Type'
+                },
                 'body': json.dumps({
                     'submission_id': submission_id,
                     'status': 'pending',
@@ -79,7 +89,7 @@ def lambda_handler(event, context):
                     'submission_id': submission_id,
                     'text': text,
                     'image_key': None,
-                    'created_at': datetime.utcnow().isoformat()
+                    'created_at': datetime.now().isoformat()
                 })
             )
             
