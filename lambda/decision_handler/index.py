@@ -101,21 +101,6 @@ def lambda_handler(event, context):
                     'ttl': int(datetime.now().timestamp()) + (86400 * 30)
                 }
             )
-        elif final_decision == 'REJECT':
-            rejected_table.put_item(
-                Item={
-                    'submission_id': submission_id,
-                    'status': 'REJECTED',
-                    'rejected_at': timestamp,
-                    'moderation_details': json.dumps({
-                        'text_decision': text_result.get('decision') if text_result else None,
-                        'text_sentiment': text_result.get('sentiment') if text_result else None,
-                        'image_decision': image_result.get('decision') if image_result else None,
-                        'image_labels': image_result.get('labels') if image_result else []
-                    }),
-                    'ttl': int(datetime.now().timestamp()) + (86400 * 30)
-                }
-            )
             
             # Send admin notification
             message = f"""
@@ -138,6 +123,21 @@ Admin Dashboard Link: http://amit-moderation-admin-frontend.s3-website-eu-west-1
                 TopicArn=notification_topic,
                 Subject='Content Requires Review',
                 Message=message
+            )
+        elif final_decision == 'REJECT':
+            rejected_table.put_item(
+                Item={
+                    'submission_id': submission_id,
+                    'status': 'REJECTED',
+                    'rejected_at': timestamp,
+                    'moderation_details': json.dumps({
+                        'text_decision': text_result.get('decision') if text_result else None,
+                        'text_sentiment': text_result.get('sentiment') if text_result else None,
+                        'image_decision': image_result.get('decision') if image_result else None,
+                        'image_labels': image_result.get('labels') if image_result else []
+                    }),
+                    'ttl': int(datetime.now().timestamp()) + (86400 * 30)
+                }
             )
         
         # Return result to caller (via Step Functions)
