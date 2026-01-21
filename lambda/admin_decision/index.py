@@ -58,13 +58,18 @@ def lambda_handler(event, context):
         
         item = response['Item']
         timestamp = datetime.now().isoformat()
+
+        if decision == 'APPROVE':
+            status = 'APPROVED'
+        else:  # REJECT
+            status = 'REJECTED'
         
         if decision == 'APPROVE':
             # Move to approved table
             approved_table.put_item(
                 Item={
                     'submission_id': submission_id,
-                    'status': 'APPROVED',
+                    'status': status,
                     'text': item.get('text', ''),
                     'image_key': item.get('image_key', ''),
                     'approved_at': timestamp,
@@ -80,7 +85,7 @@ def lambda_handler(event, context):
             UpdateExpression='SET #status = :status, resolved_at = :resolved_at',
             ExpressionAttributeNames={'#status': 'status'},
             ExpressionAttributeValues={
-                ':status': "REJECTED",
+                ':status': status,
                 ':resolved_at': timestamp
             }
         )
@@ -94,7 +99,7 @@ def lambda_handler(event, context):
                 },
             'body': json.dumps({
                 'submission_id': submission_id,
-                'admin_decision': decision,
+                'admin_decision': status,
                 'resolved_at': timestamp
             })
         }
