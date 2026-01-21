@@ -144,6 +144,19 @@ class ModerationSystemStack(Stack):
             stream=dynamodb.StreamViewType.NEW_IMAGE
         )
 
+        # Rejected log
+        rejected_table = dynamodb.Table(
+            self, "RejectedTable",
+            table_name="amit-moderation-rejected",
+            partition_key=dynamodb.Attribute(
+                name="submission_id",
+                type=dynamodb.AttributeType.STRING
+            ),
+            billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
+            removal_policy=RemovalPolicy.RETAIN,
+            stream=dynamodb.StreamViewType.NEW_IMAGE
+        )
+
         # GSI for listing pending reviews by status
         review_table.add_global_secondary_index(
             index_name="status-index",
@@ -194,6 +207,7 @@ class ModerationSystemStack(Stack):
         # DynamoDB permissions
         approved_table.grant_read_write_data(lambda_role)
         review_table.grant_read_write_data(lambda_role)
+        rejected_table.grant_read_write_data(lambda_role)
 
         # SNS permissions
         admin_notification_topic.grant_publish(lambda_role)
@@ -255,6 +269,7 @@ class ModerationSystemStack(Stack):
             environment={
                 "APPROVED_TABLE": approved_table.table_name,
                 "REVIEW_TABLE": review_table.table_name,
+                "REJECTED_TABLE": rejected_table.table_name,
                 "ADMIN_NOTIFICATION_TOPIC": admin_notification_topic.topic_arn
             },
             role=lambda_role
@@ -285,6 +300,7 @@ class ModerationSystemStack(Stack):
             timeout=Duration.seconds(10),
             environment={
                 "APPROVED_TABLE": approved_table.table_name,
+                "REJECTED_TABLE": rejected_table.table_name,
                 "REVIEW_TABLE": review_table.table_name
             },
             role=lambda_role
@@ -315,6 +331,7 @@ class ModerationSystemStack(Stack):
             timeout=Duration.seconds(30),
             environment={
                 "REVIEW_TABLE": review_table.table_name,
+                "REJECTED_TABLE": rejected_table.table_name,
                 "APPROVED_TABLE": approved_table.table_name
             },
             role=lambda_role

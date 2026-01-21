@@ -25,6 +25,7 @@ def lambda_handler(event, context):
         
         approved_table = dynamodb.Table(os.getenv('APPROVED_TABLE'))
         review_table = dynamodb.Table(os.getenv('REVIEW_TABLE'))
+        rejected_table = dynamodb.Table(os.getenv('REJECTED_TABLE'))
         
         # Check approved table
         approved_response = approved_table.get_item(Key={'submission_id': submission_id})
@@ -92,8 +93,26 @@ def lambda_handler(event, context):
                         'created_at': item.get('created_at')
                     })
                 }
+
+        # Check rejected table
+        rejected_response = rejected_table.get_item(Key={'submission_id': submission_id})
+        if 'Item' in rejected_response:
+            return {
+                'statusCode': 200,
+                'headers': {
+                    'Access-Control-Allow-Origin': '*',
+                    'Access-Control-Allow-Methods': '*',
+                    'Access-Control-Allow-Headers': '*'
+                },
+                'body': json.dumps({
+                    'submission_id': submission_id,
+                    'status': 'rejected',
+                    'rejected_at': item.get('resolved_at')
+                })
+            }
+            
         
-        # Not found (might still be processing)
+        # Not found 
         return {
             'statusCode': 404,
             'headers': {

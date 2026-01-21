@@ -41,6 +41,7 @@ def lambda_handler(event, context):
         
         review_table = dynamodb.Table(os.getenv('REVIEW_TABLE'))
         approved_table = dynamodb.Table(os.getenv('APPROVED_TABLE'))
+        rejected_table = dynamodb.Table(os.getenv('REJECTED_TABLE'))
         
         # Get item from review table
         response = review_table.get_item(Key={'submission_id': submission_id})
@@ -74,6 +75,17 @@ def lambda_handler(event, context):
                     'image_key': item.get('image_key', ''),
                     'approved_at': timestamp,
                     'approved_by': 'admin',
+                    'initially_ambiguous': True,
+                    'ttl': int(datetime.now().timestamp()) + (86400 * 30)
+                }
+            )
+        else:
+            rejected_table.put_item(
+                Item={
+                    'submission_id': submission_id,
+                    'status': status,
+                    'rejected_at': timestamp,
+                    'rejected_by': 'admin',
                     'initially_ambiguous': True,
                     'ttl': int(datetime.now().timestamp()) + (86400 * 30)
                 }

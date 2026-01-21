@@ -15,7 +15,7 @@ def lambda_handler(event, context):
     Receives array of [text_result, image_result] from parallel tasks
     Determines final decision: APPROVE | REJECT | REVIEW
     APPROVE → save to approved table
-    REJECT → return rejected (no save)
+    REJECT → save to rejected table
     REVIEW → save to review table and email admin
     """
     try:
@@ -33,6 +33,7 @@ def lambda_handler(event, context):
         )       
         approved_table = dynamodb.Table(os.getenv('APPROVED_TABLE'))
         review_table = dynamodb.Table(os.getenv('REVIEW_TABLE'))
+        rejected_table = dynamodb.Table(os.getenv('REJECTED_TABLE'))
         notification_topic = os.getenv('ADMIN_NOTIFICATION_TOPIC')
         
         # Parse results
@@ -100,6 +101,21 @@ def lambda_handler(event, context):
                     'ttl': int(datetime.now().timestamp()) + (86400 * 30)
                 }
             )
+        elif final_decision == 'REJECT':
+            rejected_table.put_item(
+                Item={
+                    'submission_id': submission_id,
+                    'status': 'REJECTED',
+                    'rejected_at': timestamp,
+                    'moderation_details': json.dumps({
+                        'text_decision': text_result.get('decision') if text_result else None,
+                        'text_sentiment': text_result.get('sentiment') if text_result else None,
+                        'image_decision': image_result.get('decision') if image_result else None,
+                        'image_labels': image_result.get('labels') if image_result else []
+                    }),
+                    'ttl': int(datetime.now().timestamp()) + (86400 * 30)
+                }
+            )
             
             # Send admin notification
             message = f"""
@@ -114,6 +130,8 @@ Text Decision: {text_result.get('decision') if text_result else 'N/A'} ({text_re
 Image Decision: {image_result.get('decision') if image_result else 'N/A'}
 
 Please review on Admin Dashboard!
+
+Admin Dashboard Link: http://amit-moderation-admin-frontend.s3-website-eu-west-1.amazonaws.com/
             """
             
             sns_client.publish(
