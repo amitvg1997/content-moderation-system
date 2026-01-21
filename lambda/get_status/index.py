@@ -107,7 +107,8 @@ def lambda_handler(event, context):
                 'body': json.dumps({
                     'submission_id': submission_id,
                     'status': 'rejected',
-                    'rejected_at': item.get('resolved_at')
+                    'rejected_at': rejected_response['Item'].get('rejected_at')
+                    
                 })
             }
             
