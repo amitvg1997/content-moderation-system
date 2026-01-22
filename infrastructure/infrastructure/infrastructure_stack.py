@@ -8,6 +8,8 @@ from aws_cdk import (
     aws_stepfunctions as sfn,
     aws_stepfunctions_tasks as sfn_tasks,
     aws_sns_subscriptions as subscriptions,
+    aws_events as events,
+    aws_events_targets as targets,
     Stack,
     RemovalPolicy,
     CfnOutput,
