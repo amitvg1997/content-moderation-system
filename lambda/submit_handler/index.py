@@ -26,6 +26,10 @@ def lambda_handler(event, context):
         bucket = os.getenv('UPLOADS_BUCKET')
         
         state_machine_arn = os.getenv('STATE_MACHINE_ARN')
+
+        # SIMULATION: Force error for demo
+        if text == 'Throw an error for simulation':
+            raise Exception("!!!DEMO ERROR: Moderation failure - submission rejected!!!")
         
         # Case 1: First call - generate pre-signed URL for image
         if filename and content_type and not image_key:
