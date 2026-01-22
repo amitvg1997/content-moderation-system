@@ -197,7 +197,7 @@ class ModerationSystemStack(Stack):
         
         lambda_role = iam.Role(
             self, "LambdaExecutionRole",
-            role_name="amit-ModerationLambdaRole",
+            role_name="amit-moderation-LambdaRole",
             assumed_by=iam.ServicePrincipal("lambda.amazonaws.com")
         )
 
