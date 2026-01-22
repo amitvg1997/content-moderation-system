@@ -483,7 +483,7 @@ class ModerationSystemStack(Stack):
             self, "LambdaErrorRule",
             event_pattern=events.EventPattern(
                 source=["aws.lambda"],
-                detail_type=["Lambda Function Execution Result - Failure"],
+                detail_type=["Lambda Function Invocation Failed"], 
                 detail={
                     "status": ["FAILED"]
                 }
