@@ -353,7 +353,7 @@ class ModerationSystemStack(Stack):
             function_name="amit-moderation-incident-handler",
             runtime=lambda_.Runtime.PYTHON_3_11,
             handler="index.lambda_handler",
-            code=lambda_.Code.from_asset("../lambdas/incident_handler"),
+            code=lambda_.Code.from_asset("../lambda/incident_handler"),
             role=lambda_role
         )
 
