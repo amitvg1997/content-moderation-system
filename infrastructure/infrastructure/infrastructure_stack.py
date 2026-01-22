@@ -233,6 +233,12 @@ class ModerationSystemStack(Stack):
             resources=["*"]
         ))
 
+        # AWS Secrets permission for github token
+        lambda_role.add_to_policy(iam.PolicyStatement(
+            actions=["secretsmanager:GetSecretValue"],
+            resources=["arn:aws:secretsmanager:eu-west-1:*:secret:amit-AWS-incident-creation-token-*"]
+        ))
+
         # ============================================================================
         # PART 5: LAMBDA FUNCTIONS
         # ============================================================================
