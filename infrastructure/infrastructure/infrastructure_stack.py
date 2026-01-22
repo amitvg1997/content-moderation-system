@@ -341,6 +341,16 @@ class ModerationSystemStack(Stack):
             role=lambda_role
         )
 
+        # Incident handler lamba
+        incident_handler_lambda = lambda_.Function(
+            self, "IncidentHandler",
+            function_name="amit-moderation-incident-handler",
+            runtime=lambda_.Runtime.PYTHON_3_11,
+            handler="index.lambda_handler",
+            code=lambda_.Code.from_asset("../lambdas/incident_handler"),
+            role=lambda_role
+        )
+
         # ============================================================================
         # PART 6: STEP FUNCTIONS STATE MACHINE
         # ============================================================================
@@ -457,7 +467,25 @@ class ModerationSystemStack(Stack):
         )
 
         # ============================================================================
-        # PART 8: OUTPUTS
+        # PART 9: EVENTBRIDGE
+        # ============================================================================
+
+        # EventBridge rule: Catch Lambda errors
+        incident_rule = events.Rule(
+            self, "LambdaErrorRule",
+            event_pattern=events.EventPattern(
+                source=["aws.lambda"],
+                detail_type=["Lambda Function Execution Result - Failure"],
+                detail={
+                    "status": ["FAILED"]
+                }
+            )
+        )
+
+        incident_rule.add_target(targets.LambdaFunction(incident_handler_lambda))
+
+        # ============================================================================
+        # PART 9: OUTPUTS
         # ============================================================================
         
         CfnOutput(
