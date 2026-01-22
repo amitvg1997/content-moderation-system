@@ -128,7 +128,8 @@ class ModerationSystemStack(Stack):
             ),
             billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
             removal_policy=RemovalPolicy.RETAIN,
-            stream=dynamodb.StreamViewType.NEW_IMAGE
+            stream=dynamodb.StreamViewType.NEW_IMAGE,
+            timeToLiveAttribute: 'ttl'
         )
 
         # Review queue (admin intervention needed)
@@ -141,7 +142,8 @@ class ModerationSystemStack(Stack):
             ),
             billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
             removal_policy=RemovalPolicy.RETAIN,
-            stream=dynamodb.StreamViewType.NEW_IMAGE
+            stream=dynamodb.StreamViewType.NEW_IMAGE,
+            timeToLiveAttribute: 'ttl'
         )
 
         # Rejected log
@@ -154,7 +156,8 @@ class ModerationSystemStack(Stack):
             ),
             billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
             removal_policy=RemovalPolicy.RETAIN,
-            stream=dynamodb.StreamViewType.NEW_IMAGE
+            stream=dynamodb.StreamViewType.NEW_IMAGE,
+            timeToLiveAttribute: 'ttl'
         )
 
         # GSI for listing pending reviews by status

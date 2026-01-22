@@ -80,7 +80,7 @@ def lambda_handler(event, context):
                     'text': text or '',
                     'image_key': image_key or '',
                     'approved_at': timestamp,
-                    'ttl': int(datetime.now().timestamp()) + (86400 * 30)
+                    'ttl': int(datetime.now().timestamp()) + (86400 * 30 * 12)
                 }
             )
         
@@ -136,7 +136,7 @@ Admin Dashboard Link: http://amit-moderation-admin-frontend.s3-website-eu-west-1
                         'image_decision': image_result.get('decision') if image_result else None,
                         'image_labels': image_result.get('labels') if image_result else []
                     }),
-                    'ttl': int(datetime.now().timestamp()) + (86400 * 30)
+                    'ttl': int(datetime.now().timestamp()) + (86400 * 7)
                 }
             )
         

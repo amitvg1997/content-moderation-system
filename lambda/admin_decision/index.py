@@ -76,7 +76,7 @@ def lambda_handler(event, context):
                     'approved_at': timestamp,
                     'approved_by': 'admin',
                     'initially_ambiguous': True,
-                    'ttl': int(datetime.now().timestamp()) + (86400 * 30)
+                    'ttl': int(datetime.now().timestamp()) + (86400 * 30 * 12)
                 }
             )
         else:
@@ -87,7 +87,7 @@ def lambda_handler(event, context):
                     'rejected_at': timestamp,
                     'rejected_by': 'admin',
                     'initially_ambiguous': True,
-                    'ttl': int(datetime.now().timestamp()) + (86400 * 30)
+                    'ttl': int(datetime.now().timestamp()) + (86400 * 7)
                 }
             )
         
