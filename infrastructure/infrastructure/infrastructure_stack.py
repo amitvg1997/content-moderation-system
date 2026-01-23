@@ -478,12 +478,12 @@ class ModerationSystemStack(Stack):
         # PART 9: EVENTBRIDGE
         # ============================================================================
 
-        # EventBridge rule: Catch Lambda errors
+        # EventBridge rule: Catch Step function errors
         incident_rule = events.Rule(
             self, "LambdaErrorRule",
             event_pattern=events.EventPattern(
-                source=["aws.lambda"],
-                detail_type=["Lambda Function Invocation Failed"], 
+                source=["aws.states"],
+                detail_type=["Step Functions Execution Status Change"],
                 detail={
                     "status": ["FAILED"]
                 }

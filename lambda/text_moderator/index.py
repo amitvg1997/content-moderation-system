@@ -14,6 +14,10 @@ def lambda_handler(event, context):
         # Extract from Step Functions input
         submission_id = event.get('submission_id')
         text = event.get('text', '').strip()
+
+        # SIMULATION: Force error for demo
+        if text == 'Throw an error for simulation':
+            raise Exception("!!!DEMO ERROR: Moderation failure - submission rejected!!!")
         
         if not text:
             return {
@@ -22,6 +26,8 @@ def lambda_handler(event, context):
                 'skipped': True
             }
         
+        
+
         # Call Comprehend
         response = comprehend.detect_sentiment(
             Text=text,
@@ -63,9 +69,4 @@ def lambda_handler(event, context):
     
     except Exception as e:
         print(f"Text moderation error: {str(e)}")
-        return {
-            'type': 'text',
-            'submission_id': event.get('submission_id'),
-            'decision': 'AMBIGUOUS',
-            'error': str(e)
-        }
+        raise

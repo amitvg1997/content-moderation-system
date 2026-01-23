@@ -20,7 +20,7 @@ def get_github_token():
     
     response = client.get_secret_value(SecretId=SECRET_NAME)
     secret = response['SecretString']
-    return json.loads(secret)['AWS-incident-creation-token']
+    return json.loads(secret)['amit-AWS-incident-creation-token']
 
 def lambda_handler(event, context):
     

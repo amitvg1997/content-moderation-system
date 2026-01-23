@@ -70,10 +70,6 @@ def lambda_handler(event, context):
             final_decision = 'REVIEW'
         else:
             final_decision = 'APPROVE'
-
-        # SIMULATION: Force error for demo
-        if text == 'Throw an error for simulation':
-            raise Exception("!!!DEMO ERROR: Moderation failure - submission rejected!!!")
         
         
         # Save based on decision
